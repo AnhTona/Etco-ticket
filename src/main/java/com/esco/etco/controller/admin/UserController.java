@@ -6,6 +6,7 @@ import com.esco.etco.entity.response.ResUpdateUserDTO;
 import com.esco.etco.entity.response.ResUserDTO;
 import com.esco.etco.entity.response.ResultPaginationDTO;
 import com.esco.etco.service.UserService;
+import com.esco.etco.util.annotation.ApiMessage;
 import com.esco.etco.util.error.IdInvalidException;
 import com.turkraft.springfilter.boot.Filter;
 import org.springframework.data.domain.Pageable;
@@ -25,12 +26,14 @@ public class UserController {
 
     // admin only
     @GetMapping("/users")
+    @ApiMessage("Get all user")
     public ResponseEntity<ResultPaginationDTO> getAllUsers(@Filter Specification<User> spec, Pageable pageable){
         return ResponseEntity.ok().body(this.userService.getAllUsers(spec,pageable));
     }
 
     // admin only
     @GetMapping("/users/{id}")
+    @ApiMessage("Get user by id")
     public ResponseEntity<ResUserDTO> getUserById(@PathVariable("id") long id) throws IdInvalidException {
         User getUser = this.userService.getUserById(id);
         if(getUser == null){
@@ -42,6 +45,7 @@ public class UserController {
 
     // admin only
     @PostMapping("/users")
+    @ApiMessage("Create a user")
     public ResponseEntity<ResCreateUserDTO> createUser(@RequestBody User user) throws IdInvalidException{
         boolean isEmailExist = this.userService.getUserByEmail(user.getEmail());
         // check email is exist or not
@@ -54,6 +58,7 @@ public class UserController {
 
     // user & admin
     @PutMapping("/users")
+    @ApiMessage("Update a user")
     public ResponseEntity<ResUpdateUserDTO> updateUser(@RequestBody User user) throws IdInvalidException{
         User updatedUser = this.userService.updateUser(user);
         // check user is exist or not
@@ -65,6 +70,7 @@ public class UserController {
 
     // user & admin
     @DeleteMapping("/users/{id}")
+    @ApiMessage("Delete a user")
     public ResponseEntity<Void> deleteUserById(@PathVariable long id) throws IdInvalidException{
         User user = this.userService.getUserById(id);
         if(user == null){
