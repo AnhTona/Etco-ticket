@@ -9,19 +9,24 @@ import com.esco.etco.service.UserService;
 import com.esco.etco.util.annotation.ApiMessage;
 import com.esco.etco.util.error.IdInvalidException;
 import com.turkraft.springfilter.boot.Filter;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
+@RequestMapping("/api/v1")
 public class UserController {
     private final UserService userService;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService,PasswordEncoder passwordEncoder) {
         this.userService = userService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // admin only
@@ -46,12 +51,14 @@ public class UserController {
     // admin only
     @PostMapping("/users")
     @ApiMessage("Create a user")
-    public ResponseEntity<ResCreateUserDTO> createUser(@RequestBody User user) throws IdInvalidException{
+    public ResponseEntity<ResCreateUserDTO> createUser(@Valid @RequestBody User user) throws IdInvalidException{
         boolean isEmailExist = this.userService.getUserByEmail(user.getEmail());
         // check email is exist or not
         if(isEmailExist){
             throw new IdInvalidException("Email đã tồn tại");
         }
+        String hashPassword = this.passwordEncoder.encode(user.getPassword());
+        user.setPassword(hashPassword);
         User createdUser = this.userService.createUser(user);
         return ResponseEntity.ok().body(this.userService.convertToResCreateUserDTO(createdUser));
     }

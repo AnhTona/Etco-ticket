@@ -32,4 +32,11 @@ public interface UserService {
     ResUpdateUserDTO convertToResUpdateUserDTO(User user);
 
     ResUserDTO convertToResUserDTO(User user);
+
+    User handleGetUserByUsername(String name);
+
+    void updateUserToken(String email, String token);
+
+    User getUserByRefreshTokenAndEmail(String token, String email);
 }
+
