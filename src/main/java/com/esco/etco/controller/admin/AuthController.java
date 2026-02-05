@@ -53,7 +53,7 @@ public class AuthController {
     public ResponseEntity<ResLoginDTO> login(@Valid @RequestBody ReqLoginDTO loginDto) {
         // Nạp input gồm username/password vào Security
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                loginDto.getUsername(), loginDto.getPassword());
+                loginDto.getEmail(), loginDto.getPassword());
 
         // xác thực người dùng => cần viết hàm loadUserByUsername
         Authentication authentication = authenticationManagerBuilder.getObject()
@@ -63,7 +63,7 @@ public class AuthController {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         ResLoginDTO res = new ResLoginDTO();
-        User currentUserDB = this.userService.handleGetUserByUsername(loginDto.getUsername());
+        User currentUserDB = this.userService.handleGetUserByUsername(loginDto.getEmail());
         if (currentUserDB != null) {
             ResLoginDTO.UserLogin userLogin = new ResLoginDTO.UserLogin(
                     currentUserDB.getId(),
@@ -77,10 +77,10 @@ public class AuthController {
         res.setAccessToken(access_token);
 
         // create refresh token
-        String refresh_token = this.securityUtil.createRefreshToken(loginDto.getUsername(), res);
+        String refresh_token = this.securityUtil.createRefreshToken(loginDto.getEmail(), res);
 
         // update user
-        this.userService.updateUserToken(refresh_token, loginDto.getUsername());
+        this.userService.updateUserToken(refresh_token, loginDto.getEmail());
 
         // set cookies
         ResponseCookie resCookies = ResponseCookie
