@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface EventImageRepository extends JpaRepository<EventImage, Long> {
@@ -18,4 +19,10 @@ public interface EventImageRepository extends JpaRepository<EventImage, Long> {
     List<EventImage> findByEventId(long eventId);
 
     List<EventImage> findByEventIdIn(List<Long> eventIds);
+
+    Optional<EventImage> findByIdAndEventId(long id, long eventId);
+
+    @Modifying
+    @Query("DELETE FROM EventImage img WHERE img.event.id = :eventId")
+    void deleteAllByEventId(@Param("eventId") long eventId);
 }

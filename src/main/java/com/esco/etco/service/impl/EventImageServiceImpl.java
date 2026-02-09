@@ -118,4 +118,71 @@ public class EventImageServiceImpl implements EventImageService {
 
         return result;
     }
+
+    @Override
+    @Transactional
+    public void deleteEventImage(long eventId, long imageId) throws Exception {
+        // Kiểm tra event có tồn tại không
+        eventRepository.findById(eventId)
+                .orElseThrow(() -> new StorageException("Không tìm thấy sự kiện với id = " + eventId));
+
+        // Tìm ảnh theo id + eventId (đảm bảo ảnh thuộc đúng event)
+        EventImage image = eventImageRepository.findByIdAndEventId(imageId, eventId)
+                .orElseThrow(() -> new StorageException(
+                        "Không tìm thấy ảnh với id = " + imageId + " trong sự kiện id = " + eventId));
+
+        // Xóa file vật lý trên server
+        String folder = "events/" + eventId;
+        this.fileService.deleteFile(image.getUrl(), folder);
+
+        // Xóa record trong database
+        eventImageRepository.delete(image);
+
+        // Nếu ảnh vừa xóa là cover → set ảnh đầu tiên còn lại làm cover
+        if (image.isCover()) {
+            List<EventImage> remaining = eventImageRepository.findByEventId(eventId);
+            if (!remaining.isEmpty()) {
+                EventImage newCover = remaining.get(0);
+                newCover.setCover(true);
+                eventImageRepository.save(newCover);
+            }
+        }
+    }
+
+    @Override
+    @Transactional
+    public ResUploadImageDTO updateEventImage(long eventId, long imageId, MultipartFile newFile) throws Exception {
+        // Validate file mới
+        this.validateFiles(new MultipartFile[]{newFile});
+
+        // Kiểm tra event tồn tại
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new StorageException("Không tìm thấy sự kiện với id = " + eventId));
+
+        // Tìm ảnh cũ
+        EventImage oldImage = eventImageRepository.findByIdAndEventId(imageId, eventId)
+                .orElseThrow(() -> new StorageException(
+                        "Không tìm thấy ảnh với id = " + imageId + " trong sự kiện id = " + eventId));
+
+        String folder = "events/" + eventId;
+
+        // Xóa file ảnh cũ trên server
+        this.fileService.deleteFile(oldImage.getUrl(), folder);
+
+        // Upload file ảnh mới
+        String newStoredName = this.fileService.store(newFile, folder);
+
+        // Cập nhật record trong DB (giữ nguyên id, isCover, event)
+        oldImage.setUrl(newStoredName);
+        oldImage.setCreatedAt(Instant.now()); // cập nhật thời gian
+
+        EventImage saved = eventImageRepository.save(oldImage);
+
+        return new ResUploadImageDTO(
+                saved.getId(),
+                saved.getUrl(),
+                saved.isCover(),
+                saved.getCreatedAt()
+        );
+    }
 }

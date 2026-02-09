@@ -20,4 +20,8 @@ public interface FileService {
     InputStreamResource getResource(String fileName, String folder) throws URISyntaxException, FileNotFoundException;
 
     String getBaseURI();
+
+    void deleteFile(String fileName, String folder) throws URISyntaxException, IOException;
+
+    void deleteDirectory(String folder) throws URISyntaxException, IOException;
 }

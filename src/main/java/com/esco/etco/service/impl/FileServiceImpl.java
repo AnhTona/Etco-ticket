@@ -66,4 +66,32 @@ public class FileServiceImpl implements FileService {
     public String getBaseURI() {
         return baseURI;
     }
+
+    @Override
+    public void deleteFile(String fileName, String folder) throws URISyntaxException, IOException {
+        URI uri = new URI(baseURI + folder + "/" + fileName);
+        Path path = Paths.get(uri);
+        File file = new File(path.toString());
+        if (file.exists() && !file.isDirectory()) {
+            Files.delete(file.toPath());
+        }
+    }
+
+    @Override
+    public void deleteDirectory(String folder) throws URISyntaxException, IOException {
+        URI uri = new URI(baseURI + folder);
+        Path path = Paths.get(uri);
+        File dir = new File(path.toString());
+        if (dir.exists() && dir.isDirectory()) {
+            // Xóa tất cả file trong folder trước
+            File[] files = dir.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    Files.deleteIfExists(file.toPath());
+                }
+            }
+            // Xóa folder
+            Files.deleteIfExists(dir.toPath());
+        }
+    }
 }

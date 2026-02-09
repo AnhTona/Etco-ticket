@@ -24,4 +24,7 @@ public interface EventRepository extends JpaRepository<Event,Long>, JpaSpecifica
 
     @EntityGraph(attributePaths = {"images"})
     Optional<Event> findEventById(long id);
+
+    @Query("SELECT e FROM Event e WHERE e.endTime < :cutoff")
+    List<Event> findEventsEndedBefore(@Param("cutoff") Instant cutoff);
 }

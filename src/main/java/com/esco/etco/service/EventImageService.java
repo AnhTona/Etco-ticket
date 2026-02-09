@@ -13,4 +13,8 @@ public interface EventImageService {
     void validateCoverIndex(Integer coverIndex, int totalFiles)throws StorageException;
 
     List<ResUploadImageDTO> uploadEventImages(long eventId, MultipartFile[] files, Integer coverIndex) throws Exception;
+
+    void deleteEventImage(long eventId, long imageId) throws Exception;
+
+    ResUploadImageDTO updateEventImage(long eventId, long imageId, MultipartFile newFile) throws Exception;
 }
