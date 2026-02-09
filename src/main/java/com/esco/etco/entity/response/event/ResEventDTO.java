@@ -1,0 +1,39 @@
+package com.esco.etco.entity.response.event;
+
+
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.Instant;
+import java.util.List;
+
+@Getter
+@Setter
+public class ResEventDTO {
+    private long id;
+    private String name;
+    private String description;
+    private String location;
+
+    private boolean isActive;
+    private boolean isPublished;
+
+    private String startDate;
+    private String endDate;
+    private String startTime;
+    private String endTime;
+
+    private String createdBy;
+    private Instant createdAt;
+
+    // Danh sách ảnh của event
+    private List<ImageDTO> images;
+
+    @Getter
+    @Setter
+    public static class ImageDTO {
+        private long id;
+        private String url;
+        private boolean isCover;
+    }
+}

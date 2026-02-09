@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -33,7 +34,7 @@ public class Event {
     @NotBlank(message = "Vui Lòng nhập số giấy phép")
     private String permitNumber;
 
-    @NotBlank(message = "Vui lòng nhập ngày cấp")
+    @NotNull(message = "Vui lòng nhập ngày cấp")
     private Instant permitIssuedAt;
 
     @NotBlank(message = "Vui lòng nhập nơi cấp")
@@ -42,10 +43,10 @@ public class Event {
     @NotBlank(message = "vui lòng nhập địa chỉ")
     private String location;
 
-    @NotBlank(message = "Vui lòng chọn ngày giờ bắt đầu")
+    @NotNull(message = "Vui lòng chọn ngày giờ bắt đầu")
     private Instant startTime;
 
-    @NotBlank(message = "Vui lòng chọn ngày giờ kết thúc")
+    @NotNull(message = "Vui lòng chọn ngày giờ kết thúc")
     private Instant endTime;
 
     private boolean isActive;

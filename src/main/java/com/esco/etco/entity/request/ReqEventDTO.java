@@ -21,7 +21,7 @@ public class ReqEventDTO {
     private String permitNumber;
 
     @NotBlank(message = "Vui lòng nhập ngày cấp")
-    private Instant permitIssuedAt;
+    private String permitIssuedAt;
 
     @NotBlank(message = "Vui lòng nhập nơi cấp")
     private String permitIssuedBy;
