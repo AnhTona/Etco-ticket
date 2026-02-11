@@ -12,6 +12,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.Instant;
 import java.util.List;
 
 @Entity
@@ -25,6 +26,11 @@ public class Genre {
 
     @NotBlank(message = "vui lòng nhập thê loại sự kiện")
     private String name;
+
+    private Instant createdAt;
+    private Instant updatedAt;
+    private String createdBy;
+    private String updatedBy;
 
     @OneToMany(mappedBy = "genre",fetch = FetchType.LAZY)
     @JsonIgnore
