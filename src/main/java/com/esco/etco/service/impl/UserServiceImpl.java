@@ -1,11 +1,13 @@
 package com.esco.etco.service.impl;
 
+import com.esco.etco.entity.Role;
 import com.esco.etco.entity.User;
 import com.esco.etco.entity.response.ResCreateUserDTO;
 import com.esco.etco.entity.response.ResUpdateUserDTO;
 import com.esco.etco.entity.response.ResUserDTO;
 import com.esco.etco.entity.response.ResultPaginationDTO;
 import com.esco.etco.repository.UserRepository;
+import com.esco.etco.service.RoleService;
 import com.esco.etco.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,16 +22,19 @@ import java.util.stream.Collectors;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final RoleService roleService;
 
-    public UserServiceImpl(UserRepository userRepository) {
+    public UserServiceImpl(UserRepository userRepository,RoleService roleService) {
         this.userRepository = userRepository;
+        this.roleService = roleService;
     }
 
     @Override
     public User createUser(User user){
         Optional<User> userOptional = this.userRepository.findById(user.getId());
-        if(userOptional.isPresent()){
-            return null;
+        if (user.getRole() != null) {
+            Role r = this.roleService.fetchById(user.getRole().getId());
+            user.setRole(r != null ? r : null);
         }
         return this.userRepository.save(user);
     }
@@ -75,9 +80,16 @@ public class UserServiceImpl implements UserService {
             currentUser.setAddress(updateUser.getAddress());
             currentUser.setGender(updateUser.getGender());
             currentUser.setAge(updateUser.getAge());
-            return this.userRepository.save(currentUser);
+
+            if (updateUser.getRole() != null) {
+                Role r = this.roleService.fetchById(updateUser.getRole().getId());
+                currentUser.setRole(r != null ? r : null);
+            }
+
+            // update
+            currentUser = this.userRepository.save(currentUser);
         }
-        return null;
+        return currentUser;
     }
 
     public boolean getUserByEmail(String email){
@@ -121,6 +133,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public ResUserDTO convertToResUserDTO(User user) {
         ResUserDTO res = new ResUserDTO();
+        ResUserDTO.RoleUser roleUser= new ResUserDTO.RoleUser();
 
         res.setId(user.getId());
         res.setName(user.getName());
@@ -130,6 +143,12 @@ public class UserServiceImpl implements UserService {
         res.setCreatedAt(user.getCreatedAt());
         res.setGender(user.getGender());
         res.setAddress(user.getAddress());
+
+        if (user.getRole() != null) {
+            roleUser.setId(user.getRole().getId());
+            roleUser.setName(user.getRole().getName());
+            res.setRole(roleUser);
+        }
 
         return res;
     }

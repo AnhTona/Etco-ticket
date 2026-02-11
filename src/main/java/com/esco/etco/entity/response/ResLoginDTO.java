@@ -1,5 +1,6 @@
 package com.esco.etco.entity.response;
 
+import com.esco.etco.entity.Role;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -22,7 +23,7 @@ public class ResLoginDTO {
         private long id;
         private String email;
         private String name;
-//        private Role role;
+        private Role role;
     }
 
     @Getter

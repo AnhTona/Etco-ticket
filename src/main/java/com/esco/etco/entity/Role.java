@@ -1,70 +1,54 @@
 package com.esco.etco.entity;
 
+import java.time.Instant;
+import java.util.List;
+
 import com.esco.etco.util.SecurityUtil;
-import jakarta.persistence.Column;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.Instant;
-import java.util.List;
-
 @Entity
-@Table(name = "events")
+@Table(name = "roles")
 @Getter
 @Setter
-public class Event {
+public class Role {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @NotBlank(message = "Vui lòng nhập tên sự kiện")
+    @NotBlank(message = "name không được để trống")
     private String name;
 
-    @Column(columnDefinition = "MEDIUMTEXT")
     private String description;
-
-    @NotBlank(message = "Vui Lòng nhập số giấy phép")
-    private String permitNumber;
-
-    @NotNull(message = "Vui lòng nhập ngày cấp")
-    private Instant permitIssuedAt;
-
-    @NotBlank(message = "Vui lòng nhập nơi cấp")
-    private String permitIssuedBy;
-
-    @NotBlank(message = "vui lòng nhập địa chỉ")
-    private String location;
-
-    @NotNull(message = "Vui lòng chọn ngày giờ bắt đầu")
-    private Instant startTime;
-
-    @NotNull(message = "Vui lòng chọn ngày giờ kết thúc")
-    private Instant endTime;
-
-    private boolean isActive;
-    private boolean isPublished;
-
+    private boolean active;
     private Instant createdAt;
     private Instant updatedAt;
     private String createdBy;
     private String updatedBy;
 
-    @OneToMany(mappedBy = "event", fetch = FetchType.LAZY )
-    private List<Ticket> tickets;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JsonIgnoreProperties(value = { "roles" })
+    @JoinTable(name = "permission_role", joinColumns = @JoinColumn(name = "role_id"), inverseJoinColumns = @JoinColumn(name = "permission_id"))
+    private List<Permission> permissions;
 
-    @OneToMany(mappedBy = "event", fetch = FetchType.LAZY )
-    private List<EventImage> images;
+    @OneToMany(mappedBy = "role", fetch = FetchType.LAZY)
+    @JsonIgnore
+    List<User> users;
 
     @PrePersist
     public void handleBeforeCreate() {
