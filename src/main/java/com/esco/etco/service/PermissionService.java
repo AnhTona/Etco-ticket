@@ -4,7 +4,9 @@ import com.esco.etco.entity.Permission;
 import com.esco.etco.entity.response.ResultPaginationDTO;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
 
+@Service
 public interface PermissionService {
 
     boolean isPermissionExist(Permission p);
