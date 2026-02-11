@@ -5,6 +5,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -54,10 +55,13 @@ public class SecurityUtil {
         Instant validity = now.plus(this.accessTokenExpiration, ChronoUnit.SECONDS);
 
         // hardcode permission (for testing)
-        List<String> listAuthority = new ArrayList<String>();
-
-        listAuthority.add("ROLE_USER_CREATE");
-        listAuthority.add("ROLE_USER_UPDATE");
+        List<String> listAuthority = new ArrayList<>();
+        if (dto.getUser().getRole() != null && dto.getUser().getRole().getPermissions() != null) {
+            listAuthority = dto.getUser().getRole().getPermissions()
+                    .stream()
+                    .map(p -> p.getModule() + "_" + p.getMethod()) // hoặc format phù hợp
+                    .collect(Collectors.toList());
+        }
 
         // @formatter:off
         JwtClaimsSet claims = JwtClaimsSet.builder()
