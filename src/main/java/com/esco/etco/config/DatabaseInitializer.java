@@ -54,8 +54,8 @@ public class DatabaseInitializer implements CommandLineRunner {
             arr.add(new Permission("Delete a Event", "/api/v1/events/{id}", "DELETE", "EVENTS"));
             arr.add(new Permission("Get a Event by id", "/api/v1/events/{id}", "GET", "EVENTS"));
             arr.add(new Permission("Get Event with pagination", "/api/v1/events", "GET", "EVENTS"));
-            arr.add(new Permission("Toggle Active", "/events/{id}/active", "PATCH", "EVENTS"));
-            arr.add(new Permission("Toggle Published", "/events/{id}/published", "PATCH", "EVENTS"));
+            arr.add(new Permission("Toggle Active", "/api/v1/events/{id}/active", "PATCH", "EVENTS"));
+            arr.add(new Permission("Toggle Published", "/api/v1/events/{id}/published", "PATCH", "EVENTS"));
 
             arr.add(new Permission("Create a role", "/api/v1/roles", "POST", "ROLES"));
             arr.add(new Permission("Update a role", "/api/v1/roles", "PUT", "ROLES"));
@@ -69,9 +69,9 @@ public class DatabaseInitializer implements CommandLineRunner {
             arr.add(new Permission("Get a user by id", "/api/v1/users/{id}", "GET", "USERS"));
             arr.add(new Permission("Get users with pagination", "/api/v1/users", "GET", "USERS"));
 
-            arr.add(new Permission("Delete a file", "/events/{eventId}/images/{imageId}", "DELETE", "FILES"));
-            arr.add(new Permission("Upload a file", "/events/{eventId}/images", "POST", "FILES"));
-            arr.add(new Permission("Update a file", "/events/{eventId}/images/{imageId}", "PUT", "FILES"));
+            arr.add(new Permission("Delete a file", "/api/v1/events/{eventId}/images/{imageId}", "DELETE", "FILES"));
+            arr.add(new Permission("Upload a file", "/api/v1/events/{eventId}/images", "POST", "FILES"));
+            arr.add(new Permission("Update a file", "/api/v1/events/{eventId}/images/{imageId}", "PUT", "FILES"));
 
 
             this.permissionRepository.saveAll(arr);
