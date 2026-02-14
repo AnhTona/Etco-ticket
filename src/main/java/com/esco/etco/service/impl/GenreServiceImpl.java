@@ -4,8 +4,10 @@ import com.esco.etco.entity.Genre;
 import com.esco.etco.entity.response.ResultPaginationDTO;
 import com.esco.etco.entity.response.genre.ResCreateGenreDTO;
 import com.esco.etco.entity.response.genre.ResUpdateGenreDTO;
+import com.esco.etco.repository.EventRepository;
 import com.esco.etco.repository.GenreRepository;
 import com.esco.etco.service.GenreService;
+import com.esco.etco.util.error.IdInvalidException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -16,9 +18,10 @@ import java.util.Optional;
 @Service
 public class GenreServiceImpl implements GenreService {
     private final GenreRepository genreRepository;
-
-    public GenreServiceImpl(GenreRepository genreRepository){
+    private final EventRepository eventRepository;
+    public GenreServiceImpl(GenreRepository genreRepository, EventRepository eventRepository){
         this.genreRepository = genreRepository;
+        this.eventRepository = eventRepository;
     }
 
     @Override
@@ -47,7 +50,11 @@ public class GenreServiceImpl implements GenreService {
 
 
     @Override
-    public void deleteGenre(long id) {
+    public void deleteGenre(long id) throws IdInvalidException {
+        if(this.eventRepository.existsByGenreId(id)){
+            throw new IdInvalidException("Không thể xóa Genre id = " + id + " vì đang có sự kiện sử dụng thể loại này.");
+        }
+
         this.genreRepository.deleteById(id);
     }
 

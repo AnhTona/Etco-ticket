@@ -10,6 +10,7 @@ import com.esco.etco.entity.response.event.ResUpdateEventDTO;
 import com.esco.etco.repository.EventImageRepository;
 import com.esco.etco.repository.EventRepository;
 import com.esco.etco.service.EventService;
+import com.esco.etco.service.FileService;
 import com.esco.etco.util.SecurityUtil;
 import com.esco.etco.util.error.IdInvalidException;
 import org.springframework.data.domain.Page;
@@ -33,13 +34,15 @@ public class EventServiceimpl implements EventService {
 
     private static final ZoneId ZONE_VN = ZoneId.of("Asia/Ho_Chi_Minh");
 
+    private final FileService fileService;
     private final EventRepository eventRepository;
     private final EventImageRepository eventImageRepository; // ★ Thêm
 
     public EventServiceimpl(EventRepository eventRepository,
-                            EventImageRepository eventImageRepository) {
+                            EventImageRepository eventImageRepository,FileService fileService) {
         this.eventRepository = eventRepository;
         this.eventImageRepository = eventImageRepository;
+        this.fileService = fileService;
     }
 
     @Override
@@ -77,6 +80,27 @@ public class EventServiceimpl implements EventService {
 
     @Override
     public void deleteEventById(long id) {
+       // lấy tất cả ảnh của event đó
+        List<EventImage> images = this.eventImageRepository.findByEventId(id);
+
+        String folder = "events/" + id;
+        for(EventImage image : images){
+            try{
+                fileService.deleteFile(image.getUrl(), folder);
+            }catch (Exception e){
+                System.out.println("Không thể xóa file: "+ image.getUrl());
+            }
+        }
+        try{
+            fileService.deleteDirectory(folder);
+        }catch (Exception e){
+            System.out.println("Không thể xóa folder: " + folder);
+        }
+
+        // Xóa tất cả EventImage record trong database
+        this.eventImageRepository.deleteAllByEventId(id);
+
+        // Xóa Event
         this.eventRepository.deleteById(id);
     }
 

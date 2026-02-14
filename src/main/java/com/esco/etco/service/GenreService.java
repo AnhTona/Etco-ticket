@@ -4,6 +4,7 @@ import com.esco.etco.entity.Genre;
 import com.esco.etco.entity.response.ResultPaginationDTO;
 import com.esco.etco.entity.response.genre.ResCreateGenreDTO;
 import com.esco.etco.entity.response.genre.ResUpdateGenreDTO;
+import com.esco.etco.util.error.IdInvalidException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,7 @@ public interface GenreService {
 
     ResultPaginationDTO getAllGenre(Specification<Genre> spec, Pageable pageable);
 
-    void deleteGenre(long id);
+    void deleteGenre(long id) throws IdInvalidException;
 
     ResCreateGenreDTO convertToResCreateGenreDTO(Genre genre);
 
