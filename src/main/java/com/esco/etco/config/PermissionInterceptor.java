@@ -32,33 +32,34 @@ public class PermissionInterceptor implements HandlerInterceptor {
             throws Exception {
 
         String path = (String) request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
-        String requestURI = request.getRequestURI();
         String httpMethod = request.getMethod();
-        System.out.println(">>> RUN preHandle");
-        System.out.println(">>> path= " + path);
-        System.out.println(">>> httpMethod= " + httpMethod);
-        System.out.println(">>> requestURI= " + requestURI);
 
-        // check permission
-        String email = SecurityUtil.getCurrentUserLogin().isPresent() == true
-                ? SecurityUtil.getCurrentUserLogin().get()
-                : "";
-        if (email != null && !email.isEmpty()) {
-            User user = this.userService.handleGetUserByUsername(email);
-            if (user != null) {
-                Role role = user.getRole();
-                if (role != null) {
-                    List<Permission> permissions = role.getPermissions();
-                    boolean isAllow = permissions.stream().anyMatch(item -> item.getApiPath().equals(path)
-                            && item.getMethod().equals(httpMethod));
 
-                    if (isAllow == false) {
-                        throw new PermissionException("Bạn không có quyền truy cập endpoint này.");
-                    }
-                } else {
-                    throw new PermissionException("Bạn không có quyền truy cập endpoint này.");
-                }
-            }
+        String email = SecurityUtil.getCurrentUserLogin().orElse("");
+
+        // check email có rỗng hay không
+        if (email.isEmpty()) {
+            throw new PermissionException("Không xác định được người dùng.");
+        }
+
+        User user = this.userService.handleGetUserByUsername(email);
+        // User bị xóa nhưng JWT còn valid thì chặn
+        if (user == null) {
+            throw new PermissionException("Người dùng không tồn tại.");
+        }
+
+        Role role = user.getRole();
+        if (role == null) {
+            throw new PermissionException("Bạn không có quyền truy cập endpoint này.");
+        }
+
+        List<Permission> permissions = role.getPermissions();
+        boolean isAllow = permissions.stream()
+                .anyMatch(item -> item.getApiPath().equals(path)
+                        && item.getMethod().equals(httpMethod));
+
+        if (!isAllow) {
+            throw new PermissionException("Bạn không có quyền truy cập endpoint này.");
         }
 
         return true;
