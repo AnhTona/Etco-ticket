@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class DatabaseInitializer implements CommandLineRunner {
@@ -49,6 +50,22 @@ public class DatabaseInitializer implements CommandLineRunner {
             arr.add(new Permission("Get a permission by id", "/api/v1/permissions/{id}", "GET", "PERMISSIONS"));
             arr.add(new Permission("Get permissions with pagination", "/api/v1/permissions", "GET", "PERMISSIONS"));
 
+            arr.add(new Permission("Create a role", "/api/v1/roles", "POST", "ROLES"));
+            arr.add(new Permission("Update a role", "/api/v1/roles", "PUT", "ROLES"));
+            arr.add(new Permission("Delete a role", "/api/v1/roles/{id}", "DELETE", "ROLES"));
+            arr.add(new Permission("Get a role by id", "/api/v1/roles/{id}", "GET", "ROLES"));
+            arr.add(new Permission("Get roles with pagination", "/api/v1/roles", "GET", "ROLES"));
+
+            arr.add(new Permission("Create a user", "/api/v1/users", "POST", "USERS"));
+            arr.add(new Permission("Delete a user", "/api/v1/users/{id}", "DELETE", "USERS"));
+            arr.add(new Permission("Get users with pagination", "/api/v1/users", "GET", "USERS"));
+
+            arr.add(new Permission("Create a Genre", "/api/v1/genres", "POST", "GENRES"));
+            arr.add(new Permission("Update a Genre", "/api/v1/genres", "PUT", "GENRES"));
+            arr.add(new Permission("Delete a Genre", "/api/v1/genres/{id}", "DELETE", "GENRES"));
+            arr.add(new Permission("Get a Genre by id", "/api/v1/genres/{id}", "GET", "GENRES"));
+            arr.add(new Permission("Get Genre with pagination", "/api/v1/genres", "GET", "GENRES"));
+
             arr.add(new Permission("Create a Event", "/api/v1/events", "POST", "EVENTS"));
             arr.add(new Permission("Update a Event", "/api/v1/events", "PUT", "EVENTS"));
             arr.add(new Permission("Delete a Event", "/api/v1/events/{id}", "DELETE", "EVENTS"));
@@ -57,28 +74,12 @@ public class DatabaseInitializer implements CommandLineRunner {
             arr.add(new Permission("Toggle Active", "/api/v1/events/{id}/active", "PATCH", "EVENTS"));
             arr.add(new Permission("Toggle Published", "/api/v1/events/{id}/published", "PATCH", "EVENTS"));
 
-            arr.add(new Permission("Create a role", "/api/v1/roles", "POST", "ROLES"));
-            arr.add(new Permission("Update a role", "/api/v1/roles", "PUT", "ROLES"));
-            arr.add(new Permission("Delete a role", "/api/v1/roles/{id}", "DELETE", "ROLES"));
-            arr.add(new Permission("Get a role by id", "/api/v1/roles/{id}", "GET", "ROLES"));
-            arr.add(new Permission("Get roles with pagination", "/api/v1/roles", "GET", "ROLES"));
-
-            arr.add(new Permission("Create a user", "/api/v1/users", "POST", "USERS"));
             arr.add(new Permission("Update a user", "/api/v1/users", "PUT", "USERS"));
-            arr.add(new Permission("Delete a user", "/api/v1/users/{id}", "DELETE", "USERS"));
             arr.add(new Permission("Get a user by id", "/api/v1/users/{id}", "GET", "USERS"));
-            arr.add(new Permission("Get users with pagination", "/api/v1/users", "GET", "USERS"));
 
-            arr.add(new Permission("Create a Genre", "/api/v1/genres", "POST", "GENRES"));
-            arr.add(new Permission("Update a Genre", "/api/v1/genres", "PUT", "GENRES"));
-            arr.add(new Permission("Delete a Genre", "/api/v1/genres/{id}", "DELETE", "GENRES"));
-            arr.add(new Permission("Get a Genre by id", "/api/v1/genres/{id}", "GET", "GENRES"));
-            arr.add(new Permission("Get Genre with pagination", "/api/v1/Genre", "GET", "GENRES"));
-
-            arr.add(new Permission("Delete a file", "/api/v1/events/{eventId}/images/{imageId}", "DELETE", "FILES"));
             arr.add(new Permission("Upload a file", "/api/v1/events/{eventId}/images", "POST", "FILES"));
             arr.add(new Permission("Update a file", "/api/v1/events/{eventId}/images/{imageId}", "PUT", "FILES"));
-
+            arr.add(new Permission("Delete a file", "/api/v1/events/{eventId}/images/{imageId}", "DELETE", "FILES"));
 
             this.permissionRepository.saveAll(arr);
         }
@@ -88,17 +89,46 @@ public class DatabaseInitializer implements CommandLineRunner {
 
             Role adminRole = new Role();
             adminRole.setName("SUPER_ADMIN");
-            adminRole.setDescription("Admin thì full permissions");
+            adminRole.setDescription("Admin có full permissions");
             adminRole.setActive(true);
             adminRole.setPermissions(allPermissions);
-
             this.roleRepository.save(adminRole);
+
+            List<Permission> customerPermissions = allPermissions.stream()
+                    .filter(p ->
+                            (p.getApiPath().equals("/api/v1/users/{id}") && p.getMethod().equals("GET")) ||
+                                    (p.getApiPath().equals("/api/v1/users") && p.getMethod().equals("PUT"))
+                    )
+                    .collect(Collectors.toList());
+
+            Role customerRole = new Role();
+            customerRole.setName("CUSTOMER");
+            customerRole.setDescription("Customer chỉ được xem và cập nhật thông tin cá nhân");
+            customerRole.setActive(true);
+            customerRole.setPermissions(customerPermissions);
+            this.roleRepository.save(customerRole);
+
+            List<Permission> organizerPermissions = allPermissions.stream()
+                    .filter(p ->
+                            p.getModule().equals("EVENTS") ||
+                                    p.getModule().equals("FILES") ||
+                                    (p.getApiPath().equals("/api/v1/users/{id}") && p.getMethod().equals("GET")) ||
+                                    (p.getApiPath().equals("/api/v1/users") && p.getMethod().equals("PUT"))
+                    )
+                    .collect(Collectors.toList());
+
+            Role organizerRole = new Role();
+            organizerRole.setName("ORGANIZER");
+            organizerRole.setDescription("Organizer quản lý sự kiện và thông tin cá nhân");
+            organizerRole.setActive(true);
+            organizerRole.setPermissions(organizerPermissions);
+            this.roleRepository.save(organizerRole);
         }
 
         if (countUsers == 0) {
             User adminUser = new User();
             adminUser.setEmail("admin@gmail.com");
-            adminUser.setAddress("hn");
+            adminUser.setAddress("hcm");
             adminUser.setAge(25);
             adminUser.setGender(GenderEnum.MALE);
             adminUser.setName("I'm super admin");
