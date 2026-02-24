@@ -7,6 +7,7 @@ import com.esco.etco.repository.PermissionRepository;
 import com.esco.etco.repository.RoleRepository;
 import com.esco.etco.repository.UserRepository;
 import com.esco.etco.util.constant.GenderEnum;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class DatabaseInitializer implements CommandLineRunner {
 
     private final PermissionRepository permissionRepository;
@@ -143,8 +145,8 @@ public class DatabaseInitializer implements CommandLineRunner {
         }
 
         if (countPermissions > 0 && countRoles > 0 && countUsers > 0) {
-            System.out.println(">>> SKIP INIT DATABASE ~ ALREADY HAVE DATA...");
+            log.error(">>> SKIP INIT DATABASE ~ ALREADY HAVE DATA...");
         } else
-            System.out.println(">>> END INIT DATABASE");
+            log.error(">>> END INIT DATABASE");
     }
 }

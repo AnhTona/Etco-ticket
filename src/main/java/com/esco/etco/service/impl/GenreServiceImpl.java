@@ -62,6 +62,8 @@ public class GenreServiceImpl implements GenreService {
     public ResCreateGenreDTO convertToResCreateGenreDTO(Genre genre) {
         genre = this.genreRepository.save(genre);
         ResCreateGenreDTO res = new ResCreateGenreDTO();
+        res.setId(genre.getId());
+        res.setName(genre.getName());
         res.setCreatedBy(genre.getCreatedBy());
         res.setCreatedAt(genre.getCreatedAt());
         return res;
@@ -71,6 +73,8 @@ public class GenreServiceImpl implements GenreService {
     public ResUpdateGenreDTO convertToResUpdateGenreDTO(Genre genre) {
         genre = this.genreRepository.save(genre);
         ResUpdateGenreDTO res = new ResUpdateGenreDTO();
+        res.setId(genre.getId());
+        res.setName(genre.getName());
         res.setUpdatedBy(genre.getUpdatedBy());
         res.setUpdatedAt(genre.getUpdatedAt());
         return res;

@@ -12,6 +12,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import com.esco.etco.entity.response.ResLoginDTO;
 import com.nimbusds.jose.util.Base64;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
@@ -27,6 +28,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 public class SecurityUtil {
     private final JwtEncoder jwtEncoder;
 
@@ -111,7 +113,7 @@ public class SecurityUtil {
         try {
             return jwtDecoder.decode(token);
         } catch (Exception e) {
-            System.out.println(">>> Refresh Token error: " + e.getMessage());
+            log.error(">>> Refresh Token error: " + e.getMessage());
             throw e;
         }
     }

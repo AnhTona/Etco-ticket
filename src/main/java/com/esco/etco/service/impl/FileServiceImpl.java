@@ -1,6 +1,7 @@
 package com.esco.etco.service.impl;
 
 import com.esco.etco.service.FileService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
 @Service
+@Slf4j
 public class FileServiceImpl implements FileService {
 
     @Value("${etco.upload-file.base-uri}")
@@ -32,7 +34,7 @@ public class FileServiceImpl implements FileService {
             try {
                 Files.createDirectories(tmpDir.toPath());
             } catch (IOException e) {
-                e.printStackTrace();
+                log.error("Không thể tạo directory: {}", folder, e);
             }
         }
     }

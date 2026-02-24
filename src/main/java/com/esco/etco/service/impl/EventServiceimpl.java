@@ -13,6 +13,7 @@ import com.esco.etco.service.EventService;
 import com.esco.etco.service.FileService;
 import com.esco.etco.util.SecurityUtil;
 import com.esco.etco.util.error.IdInvalidException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -30,6 +31,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class EventServiceimpl implements EventService {
 
     private static final ZoneId ZONE_VN = ZoneId.of("Asia/Ho_Chi_Minh");
@@ -88,13 +90,13 @@ public class EventServiceimpl implements EventService {
             try{
                 fileService.deleteFile(image.getUrl(), folder);
             }catch (Exception e){
-                System.out.println("Không thể xóa file: "+ image.getUrl());
+                log.error("Không thể xóa file: "+ image.getUrl());
             }
         }
         try{
             fileService.deleteDirectory(folder);
         }catch (Exception e){
-            System.out.println("Không thể xóa folder: " + folder);
+            log.error("Không thể xóa folder: " + folder);
         }
 
         // Xóa tất cả EventImage record trong database
