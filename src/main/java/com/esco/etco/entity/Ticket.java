@@ -14,7 +14,9 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -29,7 +31,8 @@ public class Ticket {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @NotBlank(message = "Vui lòng nhập số lượng vé")
+    @NotNull(message = "Vui lòng nhập số lượng vé")
+    @Min(value = 1, message = "Số lượng vé phải lớn hơn 0")
     private int totalQuantity;
 
     private int soldQuantity;
@@ -55,7 +58,6 @@ public class Ticket {
                 ? SecurityUtil.getCurrentUserLogin().get()
                 : "";
 
-        this.createdAt = Instant.now();
     }
 
     @PreUpdate

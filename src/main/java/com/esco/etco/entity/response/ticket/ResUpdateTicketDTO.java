@@ -1,7 +1,5 @@
 package com.esco.etco.entity.response.ticket;
 
-import com.esco.etco.util.constant.EventTicketEnum;
-import com.esco.etco.util.constant.TicketEnum;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,8 +11,18 @@ public class ResUpdateTicketDTO {
     private long id;
     private int totalQuantity;
     private int soldQuantity;
-    private EventTicketEnum ticketType;
-    private TicketEnum ticketStatus;
-    private Instant updatedAt;
+    private String ticketType;
+    private String ticketStatus;
+
     private String updatedBy;
+    private Instant updatedAt;
+
+    private EventTicket event;
+
+    @Getter
+    @Setter
+    public static class EventTicket {
+        private long id;
+        private String name;
+    }
 }

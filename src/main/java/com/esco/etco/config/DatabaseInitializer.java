@@ -79,6 +79,11 @@ public class DatabaseInitializer implements CommandLineRunner {
             arr.add(new Permission("Update a user", "/api/v1/users", "PUT", "USERS"));
             arr.add(new Permission("Get a user by id", "/api/v1/users/{id}", "GET", "USERS"));
 
+            arr.add(new Permission("Create Tickets", "/api/v1/tickets", "POST", "TICKETS"));
+            arr.add(new Permission("Update Tickets", "/api/v1/tickets/{id}", "PUT", "TICKETS"));
+            arr.add(new Permission("Get a Tickets", "/api/v1/tickets/{id}", "GET", "TICKETS"));
+            arr.add(new Permission("Get Tickets with pagination", "/api/v1/tickets", "GET", "TICKETS"));
+
             arr.add(new Permission("Upload a file", "/api/v1/events/{eventId}/images", "POST", "FILES"));
             arr.add(new Permission("Update a file", "/api/v1/events/{eventId}/images/{imageId}", "PUT", "FILES"));
             arr.add(new Permission("Delete a file", "/api/v1/events/{eventId}/images/{imageId}", "DELETE", "FILES"));
@@ -89,42 +94,9 @@ public class DatabaseInitializer implements CommandLineRunner {
         if (countRoles == 0) {
             List<Permission> allPermissions = this.permissionRepository.findAll();
 
-            Role adminRole = new Role();
-            adminRole.setName("SUPER_ADMIN");
-            adminRole.setDescription("Admin có full permissions");
-            adminRole.setActive(true);
-            adminRole.setPermissions(allPermissions);
-            this.roleRepository.save(adminRole);
-
-            List<Permission> customerPermissions = allPermissions.stream()
-                    .filter(p ->
-                            (p.getApiPath().equals("/api/v1/users/{id}") && p.getMethod().equals("GET")) ||
-                                    (p.getApiPath().equals("/api/v1/users") && p.getMethod().equals("PUT"))
-                    )
-                    .collect(Collectors.toList());
-
-            Role customerRole = new Role();
-            customerRole.setName("CUSTOMER");
-            customerRole.setDescription("Customer chỉ được xem và cập nhật thông tin cá nhân");
-            customerRole.setActive(true);
-            customerRole.setPermissions(customerPermissions);
-            this.roleRepository.save(customerRole);
-
-            List<Permission> organizerPermissions = allPermissions.stream()
-                    .filter(p ->
-                            p.getModule().equals("EVENTS") ||
-                                    p.getModule().equals("FILES") ||
-                                    (p.getApiPath().equals("/api/v1/users/{id}") && p.getMethod().equals("GET")) ||
-                                    (p.getApiPath().equals("/api/v1/users") && p.getMethod().equals("PUT"))
-                    )
-                    .collect(Collectors.toList());
-
-            Role organizerRole = new Role();
-            organizerRole.setName("ORGANIZER");
-            organizerRole.setDescription("Organizer quản lý sự kiện và thông tin cá nhân");
-            organizerRole.setActive(true);
-            organizerRole.setPermissions(organizerPermissions);
-            this.roleRepository.save(organizerRole);
+            createAdminRole(allPermissions);
+            createCustomerRole(allPermissions);
+            createOrganizerRole(allPermissions);
         }
 
         if (countUsers == 0) {
@@ -148,5 +120,50 @@ public class DatabaseInitializer implements CommandLineRunner {
             log.error(">>> SKIP INIT DATABASE ~ ALREADY HAVE DATA...");
         } else
             log.error(">>> END INIT DATABASE");
+    }
+
+    private void createAdminRole(List<Permission> allPermissions) {
+        Role adminRole = new Role();
+        adminRole.setName("SUPER_ADMIN");
+        adminRole.setDescription("Admin có full permissions");
+        adminRole.setActive(true);
+        adminRole.setPermissions(allPermissions);
+        this.roleRepository.save(adminRole);
+    }
+
+    // từ đây trở xuống là để test không phải data thật
+    private void createCustomerRole(List<Permission> allPermissions) {
+        List<Permission> customerPermissions = allPermissions.stream()
+                .filter(p ->
+                        (p.getApiPath().equals("/api/v1/users/{id}") && p.getMethod().equals("GET")) ||
+                                (p.getApiPath().equals("/api/v1/users") && p.getMethod().equals("PUT"))
+                )
+                .collect(Collectors.toList());
+
+        Role customerRole = new Role();
+        customerRole.setName("CUSTOMER");
+        customerRole.setDescription("Customer chỉ được xem và cập nhật thông tin cá nhân");
+        customerRole.setActive(true);
+        customerRole.setPermissions(customerPermissions);
+        this.roleRepository.save(customerRole);
+    }
+
+    private void createOrganizerRole(List<Permission> allPermissions) {
+        List<Permission> organizerPermissions = allPermissions.stream()
+                .filter(p ->
+                        p.getModule().equals("EVENTS") ||
+                                p.getModule().equals("FILES") ||
+                                p.getModule().equals("TICKETS") ||
+                                (p.getApiPath().equals("/api/v1/users/{id}") && p.getMethod().equals("GET")) ||
+                                (p.getApiPath().equals("/api/v1/users") && p.getMethod().equals("PUT"))
+                )
+                .collect(Collectors.toList());
+
+        Role organizerRole = new Role();
+        organizerRole.setName("ORGANIZER");
+        organizerRole.setDescription("Organizer quản lý sự kiện và thông tin cá nhân");
+        organizerRole.setActive(true);
+        organizerRole.setPermissions(organizerPermissions);
+        this.roleRepository.save(organizerRole);
     }
 }

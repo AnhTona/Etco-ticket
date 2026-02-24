@@ -7,7 +7,7 @@ import java.time.Instant;
 
 @Getter
 @Setter
-public class ResCreateTicketDTO {
+public class ResTicketDTO {
     private long id;
     private int totalQuantity;
     private int soldQuantity;
@@ -16,6 +16,8 @@ public class ResCreateTicketDTO {
 
     private String createdBy;
     private Instant createdAt;
+    private String updatedBy;
+    private Instant updatedAt;
 
     private EventTicket event;
 
