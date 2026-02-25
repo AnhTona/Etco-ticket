@@ -13,6 +13,7 @@ public class ResUpdateTicketDTO {
     private int soldQuantity;
     private String ticketType;
     private String ticketStatus;
+    private double price;
 
     private String updatedBy;
     private Instant updatedAt;

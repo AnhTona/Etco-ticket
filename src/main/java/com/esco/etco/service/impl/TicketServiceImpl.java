@@ -42,6 +42,7 @@ public class TicketServiceImpl implements TicketService {
 
         ticket.setSoldQuantity(0);
         ticket.setTicketStatus(TicketEnum.PUBLISHED);
+        ticket.setCreatedAt(Instant.now());
 
         Ticket saved = this.ticketRepository.save(ticket);
         return convertToResCreateTicketDTO(saved);
@@ -105,6 +106,7 @@ public class TicketServiceImpl implements TicketService {
         res.setId(ticket.getId());
         res.setTotalQuantity(ticket.getTotalQuantity());
         res.setSoldQuantity(ticket.getSoldQuantity());
+        res.setPrice(ticket.getPrice());
         res.setTicketType(ticket.getTicketType() != null ? ticket.getTicketType().name() : null);
         res.setTicketStatus(ticket.getTicketStatus() != null ? ticket.getTicketStatus().name() : null);
         res.setCreatedBy(ticket.getCreatedBy());
@@ -126,6 +128,7 @@ public class TicketServiceImpl implements TicketService {
         res.setId(ticket.getId());
         res.setTotalQuantity(ticket.getTotalQuantity());
         res.setSoldQuantity(ticket.getSoldQuantity());
+        res.setPrice(ticket.getPrice());
         res.setTicketType(ticket.getTicketType() != null ? ticket.getTicketType().name() : null);
         res.setTicketStatus(ticket.getTicketStatus() != null ? ticket.getTicketStatus().name() : null);
         res.setUpdatedBy(ticket.getUpdatedBy());
@@ -147,6 +150,7 @@ public class TicketServiceImpl implements TicketService {
         res.setId(ticket.getId());
         res.setTotalQuantity(ticket.getTotalQuantity());
         res.setSoldQuantity(ticket.getSoldQuantity());
+        res.setPrice(ticket.getPrice());
         res.setTicketType(ticket.getTicketType() != null ? ticket.getTicketType().name() : null);
         res.setTicketStatus(ticket.getTicketStatus() != null ? ticket.getTicketStatus().name() : null);
         res.setCreatedBy(ticket.getCreatedBy());
@@ -166,6 +170,7 @@ public class TicketServiceImpl implements TicketService {
 
     private void mapDtoToEntity(ReqTicketDTO dto, Ticket ticket) throws IdInvalidException {
         ticket.setTotalQuantity(dto.getTotalQuantity());
+        ticket.setPrice(dto.getPrice());
 
         if (dto.getTicketType() != null) {
             ticket.setTicketType(EventTicketEnum.valueOf(dto.getTicketType()));

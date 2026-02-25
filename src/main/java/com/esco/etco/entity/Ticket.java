@@ -14,11 +14,14 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.validator.constraints.Range;
 
 import java.time.Instant;
 
@@ -36,6 +39,10 @@ public class Ticket {
     private int totalQuantity;
 
     private int soldQuantity;
+
+    @NotNull(message = "Vui lòng nhập giá vé")
+    @DecimalMin(value = "1001.0",message = "giá vé phải lớn hơn 1000 đồng")
+    private double price;
 
     @Enumerated(EnumType.STRING)
     private EventTicketEnum ticketType;

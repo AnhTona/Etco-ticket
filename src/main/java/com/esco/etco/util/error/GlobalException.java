@@ -4,10 +4,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.esco.etco.entity.response.RestResponse;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.transaction.TransactionSystemException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -86,5 +89,50 @@ public class GlobalException {
         res.setError("Forbidden");
         res.setMessage(ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(res);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<RestResponse<Object>> handleConstraintViolationException(ConstraintViolationException ex) {
+        RestResponse<Object> res = new RestResponse<Object>();
+        res.setStatusCode(HttpStatus.BAD_REQUEST.value());
+        res.setError("Validation Error (Database Level)");
+
+        // Duyệt qua các lỗi và lấy thông báo (giống cách bạn làm trong MethodArgumentNotValidException)
+        List<String> errors = ex.getConstraintViolations().stream()
+                .map(ConstraintViolation::getMessage)
+                .collect(Collectors.toList());
+
+        // Nếu có nhiều lỗi thì trả mảng, 1 lỗi thì trả chuỗi
+        res.setMessage(errors.size() > 1 ? errors : errors.get(0));
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(res);
+    }
+
+    @ExceptionHandler(TransactionSystemException.class)
+    public ResponseEntity<RestResponse<Object>> handleTransactionSystemException(TransactionSystemException ex) {
+        RestResponse<Object> res = new RestResponse<Object>();
+
+        // Lấy nguyên nhân gốc rễ (Root Cause) của lỗi Transaction
+        Throwable cause = ex.getRootCause();
+
+        // Kiểm tra xem lỗi gốc có phải do Validation Entity không
+        if (cause instanceof ConstraintViolationException) {
+            ConstraintViolationException consEx = (ConstraintViolationException) cause;
+            List<String> errors = consEx.getConstraintViolations().stream()
+                    .map(ConstraintViolation::getMessage)
+                    .collect(Collectors.toList());
+
+            res.setStatusCode(HttpStatus.BAD_REQUEST.value());
+            res.setError("Validation Error (Transaction Level)");
+            res.setMessage(errors.size() > 1 ? errors : errors.get(0));
+
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(res);
+        }
+
+        // Nếu lỗi Transaction do nguyên nhân khác (ví dụ: đứt kết nối DB, deadlock...)
+        res.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        res.setError("Could not commit JPA transaction");
+        res.setMessage(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(res);
     }
 }

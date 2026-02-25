@@ -13,6 +13,7 @@ public class ResCreateTicketDTO {
     private int soldQuantity;
     private String ticketType;
     private String ticketStatus;
+    private double price;
 
     private String createdBy;
     private Instant createdAt;
