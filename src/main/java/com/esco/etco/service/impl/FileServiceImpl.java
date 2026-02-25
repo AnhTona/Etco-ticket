@@ -26,6 +26,7 @@ public class FileServiceImpl implements FileService {
     @Value("${etco.upload-file.base-uri}")
     private String baseURI;
 
+    @Override
     public void createDirectory(String folder) throws URISyntaxException {
         URI uri = new URI(folder);
         Path path = Paths.get(uri);
@@ -33,12 +34,14 @@ public class FileServiceImpl implements FileService {
         if (!tmpDir.isDirectory()) {
             try {
                 Files.createDirectories(tmpDir.toPath());
+                log.error(">>> CREATE NEW DIRECTORY SUCCESSFUL, PATH = {}", tmpDir.toPath());
             } catch (IOException e) {
                 log.error("Không thể tạo directory: {}", folder, e);
             }
         }
     }
 
+    @Override
     public String store(MultipartFile file, String folder) throws URISyntaxException, IOException {
         String finalName = System.currentTimeMillis() + "-" + file.getOriginalFilename();
         URI uri = new URI(baseURI + folder + "/" + finalName);
@@ -49,6 +52,7 @@ public class FileServiceImpl implements FileService {
         return finalName;
     }
 
+    @Override
     public long getFileLength(String fileName, String folder) throws URISyntaxException {
         URI uri = new URI(baseURI + folder + "/" + fileName);
         Path path = Paths.get(uri);
@@ -57,6 +61,7 @@ public class FileServiceImpl implements FileService {
         return tmpDir.length();
     }
 
+    @Override
     public InputStreamResource getResource(String fileName, String folder)
             throws URISyntaxException, FileNotFoundException {
         URI uri = new URI(baseURI + folder + "/" + fileName);
@@ -65,6 +70,7 @@ public class FileServiceImpl implements FileService {
         return new InputStreamResource(new FileInputStream(file));
     }
 
+    @Override
     public String getBaseURI() {
         return baseURI;
     }

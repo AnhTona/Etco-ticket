@@ -19,6 +19,7 @@ public class ResUserDTO {
     private int age;
     private GenderEnum gender;
     private String address;
+    private String avatar;
     private Instant updatedAt;
     private Instant createdAt;
 

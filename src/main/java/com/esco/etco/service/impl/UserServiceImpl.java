@@ -7,6 +7,7 @@ import com.esco.etco.entity.response.ResUpdateUserDTO;
 import com.esco.etco.entity.response.ResUserDTO;
 import com.esco.etco.entity.response.ResultPaginationDTO;
 import com.esco.etco.repository.UserRepository;
+import com.esco.etco.service.FileService;
 import com.esco.etco.service.RoleService;
 import com.esco.etco.service.UserService;
 import org.springframework.data.domain.Page;
@@ -23,10 +24,12 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final RoleService roleService;
+    private final FileService fileService;
 
-    public UserServiceImpl(UserRepository userRepository,RoleService roleService) {
+    public UserServiceImpl(UserRepository userRepository,RoleService roleService,FileService fileService) {
         this.userRepository = userRepository;
         this.roleService = roleService;
+        this.fileService = fileService;
     }
 
     @Override
@@ -35,6 +38,9 @@ public class UserServiceImpl implements UserService {
         if (user.getRole() != null) {
             Role r = this.roleService.fetchById(user.getRole().getId());
             user.setRole(r != null ? r : null);
+        }else {
+            Role defaultRole = this.roleService.findByName("CUSTOMER");
+            user.setRole(defaultRole);
         }
         return this.userRepository.save(user);
     }
@@ -78,6 +84,7 @@ public class UserServiceImpl implements UserService {
             currentUser.setName(updateUser.getName());
             currentUser.setEmail(updateUser.getEmail());
             currentUser.setAddress(updateUser.getAddress());
+            currentUser.setAvatar(updateUser.getAvatar());
             currentUser.setGender(updateUser.getGender());
             currentUser.setAge(updateUser.getAge());
 
@@ -123,6 +130,7 @@ public class UserServiceImpl implements UserService {
         res.setId(user.getId());
         res.setName(user.getName());
         res.setAge(user.getAge());
+        res.setAvatar(user.getAvatar());
         res.setUpdatedAt(user.getUpdatedAt());
         res.setAddress(user.getAddress());
         res.setGender(user.getGender());
@@ -139,6 +147,7 @@ public class UserServiceImpl implements UserService {
         res.setName(user.getName());
         res.setEmail(user.getEmail());
         res.setAge(user.getAge());
+        res.setAvatar(user.getAvatar());
         res.setUpdatedAt(user.getUpdatedAt());
         res.setCreatedAt(user.getCreatedAt());
         res.setGender(user.getGender());

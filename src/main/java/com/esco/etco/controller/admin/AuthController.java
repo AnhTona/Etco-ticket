@@ -212,7 +212,7 @@ public class AuthController {
 
         String hashPassword = this.passwordEncoder.encode(postManUser.getPassword());
         postManUser.setPassword(hashPassword);
-        User ericUser = this.userService.createUser(postManUser);
-        return ResponseEntity.status(HttpStatus.CREATED).body(this.userService.convertToResCreateUserDTO(ericUser));
+        User tonaUser = this.userService.createUser(postManUser);
+        return ResponseEntity.status(HttpStatus.CREATED).body(this.userService.convertToResCreateUserDTO(tonaUser));
     }
 }
