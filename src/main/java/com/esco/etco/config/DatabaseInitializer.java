@@ -135,8 +135,28 @@ public class DatabaseInitializer implements CommandLineRunner {
     private void createCustomerRole(List<Permission> allPermissions) {
         List<Permission> customerPermissions = allPermissions.stream()
                 .filter(p ->
+                        // Quyền xem và cập nhật thông tin user
                         (p.getApiPath().equals("/api/v1/users/{id}") && p.getMethod().equals("GET")) ||
-                                (p.getApiPath().equals("/api/v1/users") && p.getMethod().equals("PUT"))
+                                (p.getApiPath().equals("/api/v1/users") && p.getMethod().equals("PUT")) ||
+
+                                // Quyền xem events
+                                (p.getApiPath().equals("/api/v1/events") && p.getMethod().equals("GET")) ||
+                                (p.getApiPath().equals("/api/v1/events/{id}") && p.getMethod().equals("GET")) ||
+
+                                // Quyền xem genres
+                                (p.getApiPath().equals("/api/v1/genres") && p.getMethod().equals("GET")) ||
+                                (p.getApiPath().equals("/api/v1/genres/{id}") && p.getMethod().equals("GET")) ||
+
+                                // Quyền xem tickets
+                                (p.getApiPath().equals("/api/v1/tickets") && p.getMethod().equals("GET")) ||
+                                (p.getApiPath().equals("/api/v1/tickets/{id}") && p.getMethod().equals("GET")) ||
+
+                                // ✅ MỚI: Quyền đặt hàng, thanh toán, xem vé đã mua
+                                (p.getApiPath().equals("/api/v1/orders") && p.getMethod().equals("POST")) ||
+                                (p.getApiPath().equals("/api/v1/orders/pay") && p.getMethod().equals("POST")) ||
+                                (p.getApiPath().equals("/api/v1/orders/{id}") && p.getMethod().equals("GET")) ||
+                                (p.getApiPath().equals("/api/v1/orders") && p.getMethod().equals("GET")) ||
+                                (p.getApiPath().equals("/api/v1/orders/my-tickets") && p.getMethod().equals("GET"))
                 )
                 .collect(Collectors.toList());
 

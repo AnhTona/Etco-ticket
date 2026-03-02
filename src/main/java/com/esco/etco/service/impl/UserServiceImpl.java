@@ -24,12 +24,10 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final RoleService roleService;
-    private final FileService fileService;
 
-    public UserServiceImpl(UserRepository userRepository,RoleService roleService,FileService fileService) {
+    public UserServiceImpl(UserRepository userRepository,RoleService roleService) {
         this.userRepository = userRepository;
         this.roleService = roleService;
-        this.fileService = fileService;
     }
 
     @Override
