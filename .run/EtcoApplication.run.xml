@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="EtcoApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="etco.main" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.esco.etco.EtcoApplication" />
+    <option name="VM_PARAMETERS" value="-Xms512m -Xmx4g" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

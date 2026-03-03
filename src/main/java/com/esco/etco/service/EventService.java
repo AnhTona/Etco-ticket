@@ -7,9 +7,7 @@ import com.esco.etco.entity.response.event.ResCreateEventDTO;
 import com.esco.etco.entity.response.event.ResUpdateEventDTO;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Service;
 
-@Service
 public interface EventService {
     ResCreateEventDTO createEvent(ReqEventDTO dto);
 

@@ -35,13 +35,22 @@ dependencies {
 	implementation("org.thymeleaf.extras:thymeleaf-extras-springsecurity6")
 	implementation("com.turkraft.springfilter:jpa:3.2.5")
 	compileOnly("org.projectlombok:lombok")
-	developmentOnly("org.springframework.boot:spring-boot-devtools")
+	// DevTools TẠM TẮT: nó tạo 2 classloaders → ngốn gấp đôi RAM → gây OOM khi upload PDF lớn
+	 developmentOnly("org.springframework.boot:spring-boot-devtools")
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.14")
 	annotationProcessor("org.projectlombok:lombok")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.security:spring-security-test")
 	runtimeOnly("com.mysql:mysql-connector-j")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+	implementation("com.squareup.okhttp3:okhttp:4.12.0")
+	implementation("com.fasterxml.jackson.core:jackson-databind:2.17.0")
+	implementation("org.apache.commons:commons-text:1.12.0")
+	implementation("org.apache.pdfbox:pdfbox:3.0.4")
+}
+
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+jvmArgs = listOf("-Xms512m", "-Xmx4g")
 }
 
 tasks.withType<Test> {

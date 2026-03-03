@@ -7,11 +7,9 @@ import com.esco.etco.entity.response.genre.ResUpdateGenreDTO;
 import com.esco.etco.util.error.IdInvalidException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
-@Service
 public interface GenreService {
 
     Optional<Genre> fetchByid(long id);

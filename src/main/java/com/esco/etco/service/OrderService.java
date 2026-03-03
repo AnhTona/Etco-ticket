@@ -11,11 +11,9 @@ import com.esco.etco.entity.response.order.ResUserTicketDTO;
 import com.esco.etco.util.error.IdInvalidException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-@Service
 public interface OrderService {
 
     ResCreateOrderDTO createOrder(ReqOrderDTO dto) throws IdInvalidException;

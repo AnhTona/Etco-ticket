@@ -9,9 +9,7 @@ import com.esco.etco.entity.response.ticket.ResUpdateTicketDTO;
 import com.esco.etco.util.error.IdInvalidException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Service;
 
-@Service
 public interface TicketService {
 
     ResCreateTicketDTO createTicket(ReqTicketDTO dto) throws IdInvalidException;
