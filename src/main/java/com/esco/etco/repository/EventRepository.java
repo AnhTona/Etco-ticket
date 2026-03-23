@@ -28,5 +28,8 @@ public interface EventRepository extends JpaRepository<Event,Long>, JpaSpecifica
     @Query("SELECT e FROM Event e WHERE e.endTime < :cutoff")
     List<Event> findEventsEndedBefore(@Param("cutoff") Instant cutoff);
 
+    @Query("SELECT e FROM Event e WHERE LOWER(e.name) LIKE LOWER(CONCAT('%', :eventName, '%'))")
+    List<Event> searchEventsByName(@Param("eventName") String eventName);
+
     boolean existsByGenreId(long genreId);
 }

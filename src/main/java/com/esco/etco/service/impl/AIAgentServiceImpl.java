@@ -76,27 +76,28 @@ public class AIAgentServiceImpl implements AIAgentService {
                 ragResult.length(), sources.size());
 
         // Detect intent va goi tool phu hop
-        String intent = detectIntent(dto.getMessage());
-        log.info(">>> AGENT: intent={}", intent);
+        List<String> intents = detectIntent(dto.getMessage());
+        log.info(">>> AGENT: intents={}", intents);
 
-        if (intent.equals("SEARCH_EVENTS") || intent.equals("RAG_SEARCH")) {
-            // Luon them events context
+        //  Hỏi sự kiện, hỏi vé, hoặc không rõ ý (RAG_SEARCH) thì đều chạy
+        if (intents.contains("SEARCH_EVENTS") || intents.contains("SEARCH_TICKETS") || intents.contains("RAG_SEARCH")) {
+
             String eventResult = executeEventSearch(dto.getMessage());
-            if (!eventResult.startsWith("Loi") && !eventResult.startsWith("Hien khong")) {
+            if (!eventResult.startsWith("Loi") && !eventResult.startsWith("Hien khong") && !eventResult.contains("không có thông tin")) {
                 toolsUsed.add("SEARCH_EVENTS");
                 allContext.append("=== SU KIEN TRONG HE THONG ===\n");
                 allContext.append(eventResult).append("\n");
+
+                String ticketResult = executeTicketSearch(dto.getMessage());
+                if (!ticketResult.startsWith("Loi") && !ticketResult.startsWith("Hiện chưa có")) {
+                    toolsUsed.add("SEARCH_TICKETS");
+                    allContext.append("=== THONG TIN VE ===\n");
+                    allContext.append(ticketResult).append("\n");
+                }
             }
         }
 
-        if (intent.equals("SEARCH_TICKETS")) {
-            toolsUsed.add("SEARCH_TICKETS");
-            String ticketResult = executeTicketSearch(dto.getMessage());
-            allContext.append("=== THONG TIN VE ===\n");
-            allContext.append(ticketResult).append("\n");
-        }
-
-        if (intent.equals("LOOKUP_ORDER")) {
+        if (intents.contains("LOOKUP_ORDER")) {
             toolsUsed.add("LOOKUP_ORDER");
             String orderResult = executeOrderLookup(dto.getMessage());
             allContext.append("=== DON HANG ===\n");
@@ -131,7 +132,7 @@ public class AIAgentServiceImpl implements AIAgentService {
         List<String> toolsUsed = new ArrayList<>();
         List<ResChatDTO.SourceDTO> sources = new ArrayList<>();
 
-        // convert ảnh → base64
+        // convert ảnh -> base64
         String base64 = Base64.getEncoder().encodeToString(image.getBytes());
 
         // Gửi ảnh + conversation history để nhớ ngữ cảnh
@@ -188,25 +189,30 @@ public class AIAgentServiceImpl implements AIAgentService {
     /**
      * Phát hiện ý định từ câu hỏi
      */
-    private String detectIntent(String message) {
+    private List<String> detectIntent(String message) {
+        List<String> intents = new ArrayList<>();
         String lower = message.toLowerCase();
 
         if (lower.contains("sự kiện") || lower.contains("event")
                 || lower.contains("show") || lower.contains("concert")
                 || lower.contains("lịch") || lower.contains("diễn ra")) {
-            return "SEARCH_EVENTS";
+            intents.add("SEARCH_EVENTS");
         }
         if (lower.contains("vé") || lower.contains("ticket")
                 || lower.contains("giá") || lower.contains("price")
                 || lower.contains("mua") || lower.contains("còn")) {
-            return "SEARCH_TICKETS";
+            intents.add("SEARCH_TICKETS");
         }
         if (lower.contains("đơn hàng") || lower.contains("order")
-                || lower.contains("thanh toán") || lower.contains("ORD-")) {
-            return "LOOKUP_ORDER";
+                || lower.contains("thanh toán") || lower.contains("ord-")) {
+            intents.add("LOOKUP_ORDER");
         }
-        // mặc định: tìm trong knowledge base
-        return "RAG_SEARCH";
+
+        // Nếu không trúng cái nào thì mặc định tìm RAG
+        if (intents.isEmpty()) {
+            intents.add("RAG_SEARCH");
+        }
+        return intents;
     }
 
     /**
@@ -242,42 +248,36 @@ public class AIAgentServiceImpl implements AIAgentService {
      */
     private String executeEventSearch(String message) {
         try {
-            List<Event> allEvents = this.eventRepository.findAll();
-            log.info(">>> TOOL EVENT: total events in DB = {}", allEvents.size());
+            // Trích xuất tên
+            String eventName = extractEventName(message);
+            log.info(">>> TOOL EVENT: AI extracted event name = [{}]", eventName);
 
-            // Uu tien active+published, nhung neu khong co thi lay tat ca
-            List<Event> events = allEvents.stream()
-                    .filter(e -> e.isActive() && e.isPublished())
-                    .collect(Collectors.toList());
-
-            if (events.isEmpty()) {
-                log.info(">>> TOOL EVENT: no active+published events, showing all");
-                events = allEvents;
+            List<Event> events;
+            if (eventName.isEmpty()) {
+                // Nếu người dùng hỏi chung chung (VD: "Sắp tới có sự kiện gì"), lấy 5 sự kiện active mới nhất
+                events = this.eventRepository.findAll().stream()
+                        .filter(e -> e.isActive() && e.isPublished())
+                        .limit(5)
+                        .collect(Collectors.toList());
+            } else {
+                // Nếu hỏi tên cụ thể, gọi DB tìm theo tên
+                events = this.eventRepository.searchEventsByName(eventName);
             }
 
-            if (events.isEmpty()) return "Hien khong co su kien nao trong he thong.";
+            if (events.isEmpty()) return "Hiện không có sự kiện nào khớp với yêu cầu.";
 
-            StringBuilder sb = new StringBuilder("Danh sach su kien (" + events.size() + "):\n");
+            // Format
+            StringBuilder sb = new StringBuilder("Danh sách sự kiện:\n");
             for (Event e : events) {
-                sb.append("• ").append(e.getName());
-                if (e.getLocation() != null) sb.append(" | Dia diem: ").append(e.getLocation());
-                if (e.getStartTime() != null) sb.append(" | Thoi gian: ").append(e.getStartTime());
-                if (e.getEndTime() != null) sb.append(" -> ").append(e.getEndTime());
-                sb.append(" | Active=").append(e.isActive())
-                  .append(", Published=").append(e.isPublished());
-                if (e.getDescription() != null && !e.getDescription().isBlank()) {
-                    String desc = e.getDescription().length() > 200
-                            ? e.getDescription().substring(0, 200) + "..."
-                            : e.getDescription();
-                    sb.append("\n  Mo ta: ").append(desc);
-                }
-                sb.append("\n");
+                sb.append("• ").append(e.getName())
+                        .append(" | Địa điểm: ").append(e.getLocation())
+                        .append(" | Thời gian: ").append(e.getStartTime())
+                        .append("\n");
             }
-            log.info(">>> TOOL EVENT: returning {} events", events.size());
             return sb.toString();
         } catch (Exception e) {
             log.error(">>> TOOL EVENT: {}", e.getMessage());
-            return "Loi khi tim su kien: " + e.getMessage();
+            return "Lỗi khi tìm sự kiện: " + e.getMessage();
         }
     }
 
@@ -286,18 +286,29 @@ public class AIAgentServiceImpl implements AIAgentService {
      */
     private String executeTicketSearch(String message) {
         try {
-            List<Ticket> tickets = this.ticketRepository.findAll();
-            if (tickets.isEmpty()) return "Chưa có thông tin vé.";
+            // Gọi hàm sai vặt AI để lấy tên sự kiện
+            String eventName = extractEventName(message);
+            log.info(">>> TOOL TICKET: AI extracted event name = [{}]", eventName);
 
-            StringBuilder sb = new StringBuilder("Thông tin vé:\n");
+            if (eventName.isEmpty()) {
+                return "Vui lòng cung cấp tên sự kiện cụ thể để tôi kiểm tra vé giúp bạn nhé.";
+            }
+
+            // Dùng tên đó gọi vào Database
+            List<Ticket> tickets = this.ticketRepository.searchTicketsByEventName(eventName);
+
+            if (tickets.isEmpty()) {
+                return "Hiện chưa có thông tin vé cho sự kiện: " + eventName;
+            }
+
+            // Format lại thông tin đưa cho AI chính
+            StringBuilder sb = new StringBuilder("Thông tin vé của sự kiện " + eventName + ":\n");
             for (Ticket t : tickets) {
-                String eventName = t.getEvent() != null ? t.getEvent().getName() : "N/A";
                 int remaining = t.getTotalQuantity() - t.getSoldQuantity();
-                sb.append("• Sự kiện: ").append(eventName)
-                        .append(" | Loại: ").append(t.getTicketType())
+                sb.append("• Loại vé: ").append(t.getTicketType())
                         .append(" | Giá: ").append(String.format("%,.0f VNĐ", t.getPrice()))
-                        .append(" | Còn: ").append(remaining).append(" vé")
-                        .append(" | ").append(t.getTicketStatus())
+                        .append(" | Số lượng CÒN LẠI: ").append(remaining).append(" vé")
+                        .append(" | Trạng thái: ").append(t.getTicketStatus())
                         .append("\n");
             }
             return sb.toString();
@@ -376,20 +387,13 @@ public class AIAgentServiceImpl implements AIAgentService {
 
     private Map<String, Object> buildSystemMessage() {
         String systemPrompt = """
-                Bạn là trợ lý AI của EvtGo - nền tảng bán vé sự kiện.
+                Bạn là nhân viên tư vấn bán vé chuyên nghiệp và thân thiện của nền tảng EvtGo.
 
-                Khả năng:
-                1. Trả lời về sự kiện, vé, đơn hàng (từ database hệ thống)
-                2. Tìm kiếm thông tin từ tài liệu đã upload (knowledge base)
-                3. Phân tích ảnh (poster sự kiện, vé, QR code, hóa đơn)
-                4. Nhớ ngữ cảnh hội thoại trước đó
-
-                Quy tắc:
-                - Trả lời bằng tiếng Việt, thân thiện, chính xác
-                - Giá tiền format: 500,000 VNĐ
-                - Nếu không biết → nói rõ "Tôi không có thông tin"
-                - Ưu tiên dùng dữ liệu hệ thống khi có
-                - Trả lời đúng trọng tâm câu hỏi câu trả lời lang mang như giải thích việc kiếm dữ liệu ở đâu
+                QUY TẮC TRẢ LỜI NGHIÊM NGẶT:
+                1. Trả lời thẳng vào vấn đề. TUYỆT ĐỐI KHÔNG mở bài bằng các câu máy móc như "Dựa trên dữ liệu tham khảo...", "Cảm ơn bạn đã cung cấp...".
+                2. Đọc CHÍNH XÁC số lượng vé và giá tiền từ DỮ LIỆU THAM KHẢO. Cấm tự bịa số liệu (như "1 vé", "2 vé") nếu dữ liệu không ghi.
+                3. Trả lời bằng tiếng Việt tự nhiên, giống người thật đang chat.
+                4. Nếu DỮ LIỆU THAM KHẢO báo không có thông tin, hãy nói xin lỗi khách: "Dạ, hiện em chưa tìm thấy thông tin vé cho sự kiện này ạ."
                 """;
         return Map.of("role", "system", "content", systemPrompt);
     }
@@ -436,5 +440,40 @@ public class AIAgentServiceImpl implements AIAgentService {
         res.setSources(sources);
         res.setCreatedAt(Instant.now());
         return res;
+    }
+
+    private boolean isRelevant(String text, String query) {
+        if (text == null) return false;
+        // Tách câu hỏi thành các từ, nếu từ nào dài > 4 ký tự mà có trong tên sự kiện thì coi như liên quan
+        String[] words = query.toLowerCase().split("\\s+");
+        for (String word : words) {
+            if (word.length() > 4 && text.toLowerCase().contains(word)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String extractEventName(String message) {
+        String prompt = "Nhiệm vụ: Trích xuất tên sự kiện từ câu hỏi.\n" +
+                "Chỉ in ra đúng tên sự kiện, TUYỆT ĐỐI KHÔNG in thêm bất kỳ chữ nào khác.\n" +
+                "Nếu không có tên sự kiện, in ra: KHONG_CO\n" +
+                "Câu hỏi: " + message;
+
+        String extractedName = this.ollamaService.chat(
+                List.of(Map.of("role", "user", "content", prompt)), 0.1);
+
+        extractedName = extractedName.trim().replaceAll("[\"']", "");
+        extractedName = extractedName.replaceFirst("(?i)^tên sự kiện( là|:)?\\s*", "");
+
+        // NẾU AI THẤT BẠI HOẶC TRẢ VỀ RỖNG -> TỰ ĐỘNG XỬ LÝ CHUỖI
+        if (extractedName.contains("KHONG_CO") || extractedName.isBlank()) {
+            // Xóa các từ để hỏi phổ biến để biến câu hỏi thành từ khóa
+            String fallback = message.replaceAll("(?i)(còn bao nhiêu vé|thì sao|thông tin|có|không|về|sự kiện|cho tôi biết|vé|giá|bao nhiêu|ở đâu|khi nào)", "");
+            fallback = fallback.replaceAll("[,.?!]", ""); // Xóa dấu câu
+            return fallback.trim();
+        }
+
+        return extractedName;
     }
 }

@@ -84,6 +84,13 @@ public class DatabaseInitializer implements CommandLineRunner {
             arr.add(new Permission("Get a Tickets", "/api/v1/tickets/{id}", "GET", "TICKETS"));
             arr.add(new Permission("Get Tickets with pagination", "/api/v1/tickets", "GET", "TICKETS"));
 
+            arr.add(new Permission("Create an order", "/api/v1/orders", "POST", "ORDERS"));
+            arr.add(new Permission("Pay an order", "/api/v1/orders/pay", "POST", "ORDERS"));
+            arr.add(new Permission("Get an order by id", "/api/v1/orders/{id}", "GET", "ORDERS"));
+            arr.add(new Permission("Get orders with pagination", "/api/v1/orders", "GET", "ORDERS"));
+            arr.add(new Permission("Get my tickets", "/api/v1/orders/my-tickets", "GET", "ORDERS"));
+            arr.add(new Permission("Verify QR Code", "/api/v1/orders/verify-qr", "POST", "ORDERS"));
+
             arr.add(new Permission("Upload a file", "/api/v1/events/{eventId}/images", "POST", "FILES"));
             arr.add(new Permission("Update a file", "/api/v1/events/{eventId}/images/{imageId}", "PUT", "FILES"));
             arr.add(new Permission("Delete a file", "/api/v1/events/{eventId}/images/{imageId}", "DELETE", "FILES"));
