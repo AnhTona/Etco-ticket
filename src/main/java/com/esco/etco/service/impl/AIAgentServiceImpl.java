@@ -2,6 +2,7 @@ package com.esco.etco.service.impl;
 
 import com.esco.etco.entity.ChatMessage;
 import com.esco.etco.entity.Event;
+import com.esco.etco.entity.Genre;
 import com.esco.etco.entity.Order;
 import com.esco.etco.entity.Ticket;
 import com.esco.etco.entity.request.ReqChatDTO;
@@ -35,87 +36,80 @@ public class AIAgentServiceImpl implements AIAgentService {
     private final EventRepository eventRepository;
     private final TicketRepository ticketRepository;
     private final OrderRepository orderRepository;
+    private final GenreRepository genreRepository;
 
     public AIAgentServiceImpl(OllamaService ollamaService,
                               RAGService ragService,
                               ChatMessageRepository chatMessageRepository,
                               EventRepository eventRepository,
                               TicketRepository ticketRepository,
-                              OrderRepository orderRepository) {
+                              OrderRepository orderRepository,
+                              GenreRepository genreRepository) {
         this.ollamaService = ollamaService;
         this.ragService = ragService;
         this.chatMessageRepository = chatMessageRepository;
         this.eventRepository = eventRepository;
         this.ticketRepository = ticketRepository;
         this.orderRepository = orderRepository;
+        this.genreRepository = genreRepository;
     }
 
     @Override
     public ResChatDTO chat(ReqChatDTO dto) throws IdInvalidException {
-        String sessionId = dto.getSessionId() != null
-                ? dto.getSessionId()
-                : UUID.randomUUID().toString();
-
-        log.info(">>> AGENT START: session={}, message=\"{}\"", sessionId, dto.getMessage());
-
-        // luu tin nhan user
+        String sessionId = dto.getSessionId() != null ? dto.getSessionId() : UUID.randomUUID().toString();
         saveMessage(sessionId, "user", dto.getMessage(), false, null, 0);
 
         List<String> toolsUsed = new ArrayList<>();
         List<ResChatDTO.SourceDTO> sources = new ArrayList<>();
         StringBuilder allContext = new StringBuilder();
 
-        // RAG Search (knowledge base) — LUON chay
+        // Luôn chạy RAG Search cho kiến thức tĩnh (Chính sách, FAQ)
         String ragResult = executeRAGSearch(dto.getMessage(), sources);
         if (!ragResult.isEmpty()) {
             toolsUsed.add("RAG_SEARCH");
-            allContext.append("=== TU TAI LIEU (Knowledge Base) ===\n");
-            allContext.append(ragResult).append("\n");
+            allContext.append("=== KIẾN THỨC HỆ THỐNG ===\n").append(ragResult).append("\n");
         }
-        log.info(">>> AGENT: RAG returned {} chars, {} sources",
-                ragResult.length(), sources.size());
 
-        // Detect intent va goi tool phu hop
         List<String> intents = detectIntent(dto.getMessage());
-        log.info(">>> AGENT: intents={}", intents);
 
-        //  Hỏi sự kiện, hỏi vé, hoặc không rõ ý (RAG_SEARCH) thì đều chạy
-        if (intents.contains("SEARCH_EVENTS") || intents.contains("SEARCH_TICKETS") || intents.contains("RAG_SEARCH")) {
+        // Xử lý tìm kiếm Sự kiện/Vé/Thể loại
+        if (intents.contains("SEARCH_EVENTS") || intents.contains("SEARCH_TICKETS") || intents.contains("SEARCH_BY_GENRE")) {
 
+            // Thử tìm theo Tên sự kiện cụ thể trước
             String eventResult = executeEventSearch(dto.getMessage());
-            if (!eventResult.startsWith("Loi") && !eventResult.startsWith("Hien khong") && !eventResult.contains("không có thông tin")) {
-                toolsUsed.add("SEARCH_EVENTS");
-                allContext.append("=== SU KIEN TRONG HE THONG ===\n");
-                allContext.append(eventResult).append("\n");
+            boolean foundByEvent = !eventResult.startsWith("Loi") && !eventResult.contains("không có") && !eventResult.contains("không khớp");
 
+            if (foundByEvent) {
+                toolsUsed.add("SEARCH_EVENTS");
+                allContext.append("=== SỰ KIỆN KHỚP TÊN ===\n").append(eventResult).append("\n");
+
+                // Nếu thấy sự kiện thì tìm vé luôn
                 String ticketResult = executeTicketSearch(dto.getMessage());
-                if (!ticketResult.startsWith("Loi") && !ticketResult.startsWith("Hiện chưa có")) {
+                if (!ticketResult.startsWith("Loi") && !ticketResult.contains("chưa có thông tin")) {
                     toolsUsed.add("SEARCH_TICKETS");
-                    allContext.append("=== THONG TIN VE ===\n");
-                    allContext.append(ticketResult).append("\n");
+                    allContext.append("=== THÔNG TIN VÉ ===\n").append(ticketResult).append("\n");
+                }
+            } else {
+                // FALLBACK - Nếu không tìm thấy tên, tự động tìm theo Thể loại (Genre)
+                log.info(">>> AGENT: No event name matched, falling back to Genre search...");
+                String genreResult = executeGenreSearch(dto.getMessage());
+
+                if (!genreResult.contains("Lỗi") && !genreResult.contains("chưa xác định")) {
+                    toolsUsed.add("SEARCH_BY_GENRE");
+                    allContext.append("=== SỰ KIỆN THEO THỂ LOẠI ===\n").append(genreResult).append("\n");
                 }
             }
         }
 
+        // 3. Tra cứu đơn hàng
         if (intents.contains("LOOKUP_ORDER")) {
             toolsUsed.add("LOOKUP_ORDER");
-            String orderResult = executeOrderLookup(dto.getMessage());
-            allContext.append("=== DON HANG ===\n");
-            allContext.append(orderResult).append("\n");
+            allContext.append("=== ĐƠN HÀNG ===\n").append(executeOrderLookup(dto.getMessage())).append("\n");
         }
 
-        log.info(">>> AGENT: total context {} chars, tools={}", allContext.length(), toolsUsed);
-
-        String answer = generateAnswer(
-                dto.getMessage(),
-                allContext.toString(),
-                sources,
-                loadHistory(sessionId)
-        );
-
-        // luu cau tra loi
-        saveMessage(sessionId, "assistant", answer, false,
-                String.join(",", toolsUsed), 1);
+        // 4. Sinh câu trả lời cuối cùng
+        String answer = generateAnswer(dto.getMessage(), allContext.toString(), sources, loadHistory(sessionId));
+        saveMessage(sessionId, "assistant", answer, false, String.join(",", toolsUsed), 1);
 
         return buildResponse(answer, sessionId, 1, toolsUsed, sources);
     }
@@ -186,12 +180,14 @@ public class AIAgentServiceImpl implements AIAgentService {
         return buildResponse(answer, sessionId, 1, toolsUsed, sources);
     }
 
-    /**
-     * Phát hiện ý định từ câu hỏi
-     */
     private List<String> detectIntent(String message) {
         List<String> intents = new ArrayList<>();
         String lower = message.toLowerCase();
+
+        if (lower.contains("thể loại") || lower.contains("genre") || lower.contains("loại hình")
+                || lower.contains("ca nhạc") || lower.contains("hội thảo") || lower.contains("triển lãm")) {
+            intents.add("SEARCH_BY_GENRE");
+        }
 
         if (lower.contains("sự kiện") || lower.contains("event")
                 || lower.contains("show") || lower.contains("concert")
@@ -393,7 +389,9 @@ public class AIAgentServiceImpl implements AIAgentService {
                 1. Trả lời thẳng vào vấn đề. TUYỆT ĐỐI KHÔNG mở bài bằng các câu máy móc như "Dựa trên dữ liệu tham khảo...", "Cảm ơn bạn đã cung cấp...".
                 2. Đọc CHÍNH XÁC số lượng vé và giá tiền từ DỮ LIỆU THAM KHẢO. Cấm tự bịa số liệu (như "1 vé", "2 vé") nếu dữ liệu không ghi.
                 3. Trả lời bằng tiếng Việt tự nhiên, giống người thật đang chat.
-                4. Nếu DỮ LIỆU THAM KHẢO báo không có thông tin, hãy nói xin lỗi khách: "Dạ, hiện em chưa tìm thấy thông tin vé cho sự kiện này ạ."
+                4. Nếu DỮ LIỆU THAM KHẢO báo không có thông tin, hãy nói xin lỗi khách: "Dạ, hiện em chưa tìm thấy thông tin vé cho sự kiện này ạ.
+                5. Bạn là một trợ lý ảo hoạt động theo từng phiên (session-based). Bạn CHỈ ĐƯỢC PHÉP sử dụng thông tin từ lịch sử trò chuyện của phiên hiện tại. Tuyệt đối không được sử dụng, nhắc lại hoặc suy luận dựa trên thông tin từ các người dùng hoặc phiên làm việc khác mà bạn đã xử lý trước đó. Mỗi yêu cầu mới từ người dùng phải được coi là một ngữ cảnh độc lập trừ khi có dữ liệu lịch sử cụ thể của chính người dùng đó được cung cấp.
+                6. Khi người dùng hỏi thể loại sự kiện nào hãy tìm trong events sẽ có genres_id và dựa vào đó để tìm.
                 """;
         return Map.of("role", "system", "content", systemPrompt);
     }
@@ -456,7 +454,7 @@ public class AIAgentServiceImpl implements AIAgentService {
 
     private String extractEventName(String message) {
         String prompt = "Nhiệm vụ: Trích xuất tên sự kiện từ câu hỏi.\n" +
-                "Chỉ in ra đúng tên sự kiện, TUYỆT ĐỐI KHÔNG in thêm bất kỳ chữ nào khác.\n" +
+                "Chỉ in ra đúng tên sự kiện,kèm giá vé và số lượng vé, TUYỆT ĐỐI KHÔNG in thêm bất kỳ chữ nào khác.\n" +
                 "Nếu không có tên sự kiện, in ra: KHONG_CO\n" +
                 "Câu hỏi: " + message;
 
@@ -475,5 +473,60 @@ public class AIAgentServiceImpl implements AIAgentService {
         }
 
         return extractedName;
+    }
+
+    private String executeGenreSearch(String message) {
+        try {
+            // Lấy từ khóa thể loại sạch từ AI
+            String genreKeyword = extractGenreName(message);
+            if (genreKeyword.equals("KHONG_CO")) return "Tôi chưa rõ bạn đang tìm thể loại nào.";
+
+            // Tìm danh sách ID thể loại từ bảng Genre
+            // Trong bước 2 của executeGenreSearch
+            List<Long> genreIds = this.genreRepository.findAll().stream()
+                    .filter(g -> {
+                        String name = g.getName().toLowerCase();
+                        // Kiểm tra chứa từ khóa hoặc từ khóa chứa tên (để bao quát sai sót nhỏ)
+                        return name.contains(genreKeyword) || genreKeyword.contains(name);
+                    })
+                    .map(Genre::getId)
+                    .collect(Collectors.toList());
+
+            if (genreIds.isEmpty()) {
+                return "Hiện hệ thống chưa có thông tin về thể loại: " + genreKeyword;
+            }
+
+            // Gọi Repository để lấy Event (Tối ưu hơn findAll)
+            // Lưu ý: Bạn cần thêm phương thức findByGenreIdIn vào EventRepository trước
+            List<Event> events = this.eventRepository.findByGenreIdIn(genreIds);
+
+            if (events.isEmpty()) {
+                return "Rất tiếc, hiện chưa có sự kiện nào đang mở thuộc thể loại này.";
+            }
+
+            // Trả về tối đa 5 kết quả cho AI
+            StringBuilder sb = new StringBuilder("Tìm thấy các sự kiện thuộc thể loại " + genreKeyword + ":\n");
+            events.stream().limit(5).forEach(e -> {
+                sb.append("- ").append(e.getName())
+                        .append(" (Địa điểm: ").append(e.getLocation())
+                        .append(" | Bắt đầu: ").append(e.getStartTime()).append(")\n");
+            });
+
+            return sb.toString();
+
+        } catch (Exception e) {
+            log.error(">>> ERR GENRE SEARCH: {}", e.getMessage());
+            return "Lỗi khi truy vấn thể loại sự kiện.";
+        }
+    }
+
+    private String extractGenreName(String message) {
+        String prompt = "Nhiệm vụ: Trích xuất DUY NHẤT tên thể loại (VD: nhạc sống, thể thao, kịch) từ câu hỏi.\n" +
+                "Bỏ qua các từ như 'tìm kiếm', 'xem', 'có...không'.\n" +
+                "Nếu là 'nhạc sống' hoặc 'ca nhạc', hãy trả về: nhạc sống\n" +
+                "Chỉ trả về từ khóa, không giải thích.\n" +
+                "Câu hỏi: " + message;
+
+        return this.ollamaService.chat(List.of(Map.of("role", "user", "content", prompt)), 0.1).trim().toLowerCase();
     }
 }
