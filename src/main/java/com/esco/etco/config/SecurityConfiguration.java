@@ -50,8 +50,8 @@ public class SecurityConfiguration {
                 "/",
                 "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/register","/error",
                 "/storage/**","/api/v1/files/**",
-                "/api/v1/tickets",
-                "/api/v1/genres",
+                "/api/v1/tickets/**",
+                "/api/v1/genres/**",
                 "/api/v1/ai/**",
                 "/v3/api-docs/**",
                 "/swagger-ui/**",
@@ -64,7 +64,9 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(
                         authz -> authz
                                 .requestMatchers(whiteList).permitAll()
-                                .requestMatchers(HttpMethod.GET,"/api/v1/events", "/api/v1/genres").permitAll()
+                                .requestMatchers(HttpMethod.GET,"/api/v1/events/**",
+                                        "/api/v1/genres/**",
+                                        "/api/v1/tickets/**").permitAll()
                                 .anyRequest().authenticated())
                 .oauth2ResourceServer((oauth2) -> oauth2.jwt(Customizer.withDefaults())
                         .authenticationEntryPoint(customAuthenticationEntryPoint))

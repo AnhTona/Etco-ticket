@@ -1,5 +1,4 @@
 package com.esco.etco.entity.response.order;
-
 import lombok.Getter;
 import lombok.Setter;
 
@@ -25,6 +24,7 @@ public class ResUserTicketDTO {
         private String location;
         private Instant startTime;
         private Instant endTime;
+        private String image;
     }
 
     @Getter

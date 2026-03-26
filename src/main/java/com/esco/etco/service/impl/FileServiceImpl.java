@@ -34,7 +34,7 @@ public class FileServiceImpl implements FileService {
         if (!tmpDir.isDirectory()) {
             try {
                 Files.createDirectories(tmpDir.toPath());
-                log.error(">>> CREATE NEW DIRECTORY SUCCESSFUL, PATH = {}", tmpDir.toPath());
+                log.info(">>> CREATE NEW DIRECTORY SUCCESSFUL, PATH = {}", tmpDir.toPath());
             } catch (IOException e) {
                 log.error("Không thể tạo directory: {}", folder, e);
             }
@@ -43,9 +43,16 @@ public class FileServiceImpl implements FileService {
 
     @Override
     public String store(MultipartFile file, String folder) throws URISyntaxException, IOException {
-        String finalName = System.currentTimeMillis() + "-" + file.getOriginalFilename();
+        // ====== Hợp nhất: Xử lý xóa khoảng trắng trong tên file để URL an toàn ======
+        String originalName = file.getOriginalFilename();
+        if (originalName != null) {
+            originalName = originalName.replaceAll("\\s+", "-");
+        }
+
+        String finalName = System.currentTimeMillis() + "-" + originalName;
         URI uri = new URI(baseURI + folder + "/" + finalName);
         Path path = Paths.get(uri);
+
         try (InputStream inputStream = file.getInputStream()) {
             Files.copy(inputStream, path, StandardCopyOption.REPLACE_EXISTING);
         }
@@ -91,14 +98,14 @@ public class FileServiceImpl implements FileService {
         Path path = Paths.get(uri);
         File dir = new File(path.toString());
         if (dir.exists() && dir.isDirectory()) {
-            // Xóa tất cả file trong folder trước
+            // Xóa tất cả file trong folder trước để có thể xóa folder trống
             File[] files = dir.listFiles();
             if (files != null) {
                 for (File file : files) {
                     Files.deleteIfExists(file.toPath());
                 }
             }
-            // Xóa folder
+            // Xóa folder chính
             Files.deleteIfExists(dir.toPath());
         }
     }

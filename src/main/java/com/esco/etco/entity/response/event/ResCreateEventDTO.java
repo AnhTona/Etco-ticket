@@ -22,6 +22,17 @@ public class ResCreateEventDTO {
     private String endDate;
     private String startTime;
     private String endTime;
+
     private String createdBy;
     private Instant createdAt;
+
+    private GenreDTO genre;
+
+
+    @Getter
+    @Setter
+    public static class GenreDTO {
+        private long id;
+        private String name;
+    }
 }

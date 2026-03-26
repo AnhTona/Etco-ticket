@@ -13,10 +13,8 @@ public class EtcoApplication {
 	public static void main(String[] args) {
 		// Log heap size thực tế để verify JVM args
 		Runtime rt = Runtime.getRuntime();
-		System.out.println("====================================");
 		System.out.println(">>> JVM Max Heap: " + (rt.maxMemory() / 1024 / 1024) + " MB");
 		System.out.println(">>> JVM Total Heap: " + (rt.totalMemory() / 1024 / 1024) + " MB");
-		System.out.println("====================================");
 
 		SpringApplication.run(EtcoApplication.class, args);
 	}

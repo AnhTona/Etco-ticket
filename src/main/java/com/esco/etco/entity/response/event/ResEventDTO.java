@@ -26,7 +26,15 @@ public class ResEventDTO {
     private String createdBy;
     private Instant createdAt;
 
-    // Danh sách ảnh của event
+    // Hợp nhất: Thêm các trường về giấy phép (Permit)
+    private String permitNumber;
+    private Instant permitIssuedAt;
+    private String permitIssuedBy;
+
+    // Hợp nhất: Thêm thông tin Genre
+    private GenreDTO genre;
+
+    // Hợp nhất: Danh sách ảnh của event (đầy đủ các trường)
     private List<ImageDTO> images;
 
     @Getter
@@ -35,5 +43,12 @@ public class ResEventDTO {
         private long id;
         private String url;
         private boolean isCover;
+    }
+
+    @Getter
+    @Setter
+    public static class GenreDTO {
+        private long id;
+        private String name;
     }
 }

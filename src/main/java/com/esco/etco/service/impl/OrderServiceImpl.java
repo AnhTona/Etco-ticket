@@ -50,7 +50,6 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public ResCreateOrderDTO createOrder(ReqOrderDTO dto) throws IdInvalidException {
-        // Lấy user hiện tại
         String email = SecurityUtil.getCurrentUserLogin()
                 .orElseThrow(() -> new IdInvalidException("Vui lòng đăng nhập"));
         User currentUser = this.userRepository.findByEmail(email);
@@ -62,7 +61,6 @@ public class OrderServiceImpl implements OrderService {
             throw new IdInvalidException("Đơn hàng phải có ít nhất 1 item");
         }
 
-        // Tạo Order
         Order order = new Order();
         order.setOrderCode(generateOrderCode());
         order.setOrderStatus(OrderStatusEnum.PENDING);
@@ -71,21 +69,18 @@ public class OrderServiceImpl implements OrderService {
         double totalAmount = 0;
         List<OrderItem> orderItems = new ArrayList<>();
 
-        // Tạo từng OrderItem
         for (ReqOrderDTO.OrderItemDTO itemDTO : dto.getItems()) {
             Ticket ticket = this.ticketRepository.findById(itemDTO.getTicketId()).orElse(null);
             if (ticket == null) {
                 throw new IdInvalidException("Ticket với id = " + itemDTO.getTicketId() + " không tồn tại");
             }
 
-            // Kiểm tra trạng thái vé
             if (ticket.getTicketStatus() != TicketEnum.PUBLISHED) {
                 throw new IdInvalidException("Vé '" + ticket.getTicketType()
                         + "' của sự kiện '" + ticket.getEvent().getName()
                         + "' hiện không còn bán");
             }
 
-            // Kiểm tra số lượng còn lại
             int remaining = ticket.getTotalQuantity() - ticket.getSoldQuantity();
             if (itemDTO.getQuantity() > remaining) {
                 throw new IdInvalidException("Vé '" + ticket.getTicketType()
@@ -106,10 +101,7 @@ public class OrderServiceImpl implements OrderService {
         order.setTotalAmount(totalAmount);
         order.setOrderItems(orderItems);
 
-        // 4. Lưu DB
         Order savedOrder = this.orderRepository.save(order);
-
-        // 5. Convert response
         return convertToResCreateOrderDTO(savedOrder);
     }
 
@@ -121,42 +113,30 @@ public class OrderServiceImpl implements OrderService {
             throw new IdInvalidException("Order với id = " + dto.getOrderId() + " không tồn tại");
         }
 
-        // Kiểm tra trạng thái
         if (order.getOrderStatus() != OrderStatusEnum.PENDING) {
-            throw new IdInvalidException("Đơn hàng này đã được xử lý (trạng thái: "
-                    + order.getOrderStatus() + ")");
+            throw new IdInvalidException("Đơn hàng này đã được xử lý (trạng thái: " + order.getOrderStatus() + ")");
         }
 
-        // Kiểm tra quyền: chỉ chủ đơn hàng mới được thanh toán
-        String email = SecurityUtil.getCurrentUserLogin()
-                .orElseThrow(() -> new IdInvalidException("Vui lòng đăng nhập"));
+        String email = SecurityUtil.getCurrentUserLogin().orElseThrow(() -> new IdInvalidException("Vui lòng đăng nhập"));
         if (!order.getUser().getEmail().equals(email)) {
             throw new IdInvalidException("Bạn không có quyền thanh toán đơn hàng này");
         }
 
         List<UserTicket> allUserTickets = new ArrayList<>();
 
-        // Duyệt từng OrderItem → tạo UserTickets + cập nhật soldQuantity
         for (OrderItem item : order.getOrderItems()) {
             Ticket ticket = item.getTicket();
-
-            // Kiểm tra lại số lượng còn (race condition)
             int remaining = ticket.getTotalQuantity() - ticket.getSoldQuantity();
             if (item.getQuantity() > remaining) {
-                throw new IdInvalidException("Vé '" + ticket.getTicketType()
-                        + "' chỉ còn " + remaining + " vé. Vui lòng cập nhật đơn hàng.");
+                throw new IdInvalidException("Vé '" + ticket.getTicketType() + "' chỉ còn " + remaining + " vé.");
             }
 
-            // Tăng soldQuantity
             ticket.setSoldQuantity(ticket.getSoldQuantity() + item.getQuantity());
-
-            // Auto chuyển SOLD_OUT nếu hết vé
             if (ticket.getSoldQuantity() >= ticket.getTotalQuantity()) {
                 ticket.setTicketStatus(TicketEnum.SOLD_OUT);
             }
             this.ticketRepository.save(ticket);
 
-            // Tạo UserTicket (mỗi vé 1 QR code riêng)
             for (int i = 0; i < item.getQuantity(); i++) {
                 UserTicket userTicket = new UserTicket();
                 userTicket.setQrCode(UUID.randomUUID().toString());
@@ -166,29 +146,22 @@ public class OrderServiceImpl implements OrderService {
                 userTicket.setTicket(ticket);
                 userTicket.setEvent(ticket.getEvent());
                 userTicket.setOrder(order);
-
                 allUserTickets.add(userTicket);
             }
         }
 
-        // Lưu tất cả UserTickets
         this.userTicketRepository.saveAll(allUserTickets);
-
-        // Cập nhật trạng thái Order
         order.setOrderStatus(OrderStatusEnum.PAID);
         order.setPaidAt(Instant.now());
         this.orderRepository.save(order);
 
-        // Convert response
         return convertToResPayOrderDTO(order, allUserTickets);
     }
 
     @Override
     public ResOrderDTO getOrderById(long id) throws IdInvalidException {
         Order order = this.orderRepository.findById(id).orElse(null);
-        if (order == null) {
-            throw new IdInvalidException("Order với id = " + id + " không tồn tại");
-        }
+        if (order == null) throw new IdInvalidException("Order không tồn tại");
         return convertToResOrderDTO(order);
     }
 
@@ -197,19 +170,13 @@ public class OrderServiceImpl implements OrderService {
         Page<Order> pageOrder = this.orderRepository.findAll(spec, pageable);
         ResultPaginationDTO rs = new ResultPaginationDTO();
         ResultPaginationDTO.Meta mt = new ResultPaginationDTO.Meta();
-
         mt.setPage(pageable.getPageNumber() + 1);
         mt.setPageSize(pageable.getPageSize());
         mt.setPages(pageOrder.getTotalPages());
         mt.setTotal(pageOrder.getTotalElements());
-
         rs.setMeta(mt);
 
-        List<ResOrderDTO> listDTO = pageOrder.getContent().stream()
-                .map(this::convertToResOrderDTO)
-                .collect(Collectors.toList());
-
-        rs.setResult(listDTO);
+        rs.setResult(pageOrder.getContent().stream().map(this::convertToResOrderDTO).collect(Collectors.toList()));
         return rs;
     }
 
@@ -219,8 +186,7 @@ public class OrderServiceImpl implements OrderService {
         User user = this.userRepository.findByEmail(email);
         if (user == null) return new ArrayList<>();
 
-        List<UserTicket> userTickets = this.userTicketRepository.findByUserId(user.getId());
-        return userTickets.stream()
+        return this.userTicketRepository.findByUserId(user.getId()).stream()
                 .map(this::convertToResUserTicketDTO)
                 .collect(Collectors.toList());
     }
@@ -231,29 +197,55 @@ public class OrderServiceImpl implements OrderService {
         UserTicket userTicket = this.userTicketRepository.findByQrCode(qrCode)
                 .orElseThrow(() -> new IdInvalidException("QR code không hợp lệ"));
 
-        if (userTicket.getStatus() == UserTicketStatusEnum.USED) {
+        if (userTicket.getStatus() == UserTicketStatusEnum.USED)
             throw new IdInvalidException("Vé này đã được sử dụng lúc: " + userTicket.getUsedAt());
-        }
-        if (userTicket.getStatus() == UserTicketStatusEnum.CANCELLED) {
-            throw new IdInvalidException("Vé này đã bị huỷ");
-        }
-        if (userTicket.getStatus() == UserTicketStatusEnum.EXPIRED) {
-            throw new IdInvalidException("Vé này đã hết hạn");
-        }
 
-        // Đánh dấu đã sử dụng
         userTicket.setStatus(UserTicketStatusEnum.USED);
         userTicket.setUsedAt(Instant.now());
-        this.userTicketRepository.save(userTicket);
-
-        return convertToResUserTicketDTO(userTicket);
+        return convertToResUserTicketDTO(this.userTicketRepository.save(userTicket));
     }
-
 
     private String generateOrderCode() {
         String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String uuid = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        return "ORD-" + date + "-" + uuid;
+        return "ORD-" + date + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    }
+
+    private ResUserTicketDTO convertToResUserTicketDTO(UserTicket ut) {
+        ResUserTicketDTO res = new ResUserTicketDTO();
+        res.setId(ut.getId());
+        res.setQrCode(ut.getQrCode());
+        res.setStatus(ut.getStatus().name());
+        res.setIssuedAt(ut.getIssuedAt());
+        res.setUsedAt(ut.getUsedAt());
+
+        if (ut.getEvent() != null) {
+            ResUserTicketDTO.EventDTO eventDTO = new ResUserTicketDTO.EventDTO();
+            eventDTO.setId(ut.getEvent().getId());
+            eventDTO.setName(ut.getEvent().getName());
+            eventDTO.setLocation(ut.getEvent().getLocation());
+            eventDTO.setStartTime(ut.getEvent().getStartTime());
+            eventDTO.setEndTime(ut.getEvent().getEndTime());
+
+            // Merge: Xử lý logic lấy ảnh cover cho vé
+            if (ut.getEvent().getImages() != null && !ut.getEvent().getImages().isEmpty()) {
+                String coverImage = ut.getEvent().getImages().stream()
+                        .filter(EventImage::isCover)
+                        .map(EventImage::getUrl)
+                        .findFirst()
+                        .orElse(ut.getEvent().getImages().get(0).getUrl());
+                eventDTO.setImage(coverImage);
+            }
+            res.setEvent(eventDTO);
+        }
+
+        if (ut.getTicket() != null) {
+            ResUserTicketDTO.TicketDTO ticketDTO = new ResUserTicketDTO.TicketDTO();
+            ticketDTO.setId(ut.getTicket().getId());
+            ticketDTO.setTicketType(ut.getTicket().getTicketType() != null ? ut.getTicket().getTicketType().name() : null);
+            ticketDTO.setPrice(ut.getTicket().getPrice());
+            res.setTicket(ticketDTO);
+        }
+        return res;
     }
 
     private ResCreateOrderDTO convertToResCreateOrderDTO(Order order) {
@@ -265,21 +257,17 @@ public class OrderServiceImpl implements OrderService {
         res.setCreatedAt(order.getCreatedAt());
         res.setCreatedBy(order.getCreatedBy());
 
-        List<ResCreateOrderDTO.OrderItemDTO> items = order.getOrderItems().stream().map(item -> {
+        res.setItems(order.getOrderItems().stream().map(item -> {
             ResCreateOrderDTO.OrderItemDTO dto = new ResCreateOrderDTO.OrderItemDTO();
             dto.setId(item.getId());
             dto.setTicketId(item.getTicket().getId());
-            dto.setTicketType(item.getTicket().getTicketType() != null
-                    ? item.getTicket().getTicketType().name() : null);
-            dto.setEventName(item.getTicket().getEvent() != null
-                    ? item.getTicket().getEvent().getName() : null);
+            dto.setTicketType(item.getTicket().getTicketType() != null ? item.getTicket().getTicketType().name() : null);
+            dto.setEventName(item.getTicket().getEvent() != null ? item.getTicket().getEvent().getName() : null);
             dto.setQuantity(item.getQuantity());
             dto.setPricePerUnit(item.getPricePerUnit());
             dto.setSubtotal(item.getSubtotal());
             return dto;
-        }).collect(Collectors.toList());
-
-        res.setItems(items);
+        }).collect(Collectors.toList()));
         return res;
     }
 
@@ -301,21 +289,17 @@ public class OrderServiceImpl implements OrderService {
             res.setUser(userDTO);
         }
 
-        List<ResOrderDTO.OrderItemDTO> items = order.getOrderItems().stream().map(item -> {
+        res.setItems(order.getOrderItems().stream().map(item -> {
             ResOrderDTO.OrderItemDTO dto = new ResOrderDTO.OrderItemDTO();
             dto.setId(item.getId());
             dto.setTicketId(item.getTicket().getId());
-            dto.setTicketType(item.getTicket().getTicketType() != null
-                    ? item.getTicket().getTicketType().name() : null);
-            dto.setEventName(item.getTicket().getEvent() != null
-                    ? item.getTicket().getEvent().getName() : null);
+            dto.setTicketType(item.getTicket().getTicketType() != null ? item.getTicket().getTicketType().name() : null);
+            dto.setEventName(item.getTicket().getEvent() != null ? item.getTicket().getEvent().getName() : null);
             dto.setQuantity(item.getQuantity());
             dto.setPricePerUnit(item.getPricePerUnit());
             dto.setSubtotal(item.getSubtotal());
             return dto;
-        }).collect(Collectors.toList());
-
-        res.setItems(items);
+        }).collect(Collectors.toList()));
         return res;
     }
 
@@ -327,49 +311,16 @@ public class OrderServiceImpl implements OrderService {
         res.setPaidAt(order.getPaidAt());
         res.setTotalAmount(order.getTotalAmount());
 
-        List<ResPayOrderDTO.UserTicketDTO> ticketDTOs = userTickets.stream().map(ut -> {
+        res.setUserTickets(userTickets.stream().map(ut -> {
             ResPayOrderDTO.UserTicketDTO dto = new ResPayOrderDTO.UserTicketDTO();
             dto.setId(ut.getId());
             dto.setQrCode(ut.getQrCode());
             dto.setEventName(ut.getEvent() != null ? ut.getEvent().getName() : null);
-            dto.setTicketType(ut.getTicket() != null && ut.getTicket().getTicketType() != null
-                    ? ut.getTicket().getTicketType().name() : null);
+            dto.setTicketType(ut.getTicket() != null && ut.getTicket().getTicketType() != null ? ut.getTicket().getTicketType().name() : null);
             dto.setStatus(ut.getStatus().name());
             dto.setIssuedAt(ut.getIssuedAt());
             return dto;
-        }).collect(Collectors.toList());
-
-        res.setUserTickets(ticketDTOs);
-        return res;
-    }
-
-    private ResUserTicketDTO convertToResUserTicketDTO(UserTicket ut) {
-        ResUserTicketDTO res = new ResUserTicketDTO();
-        res.setId(ut.getId());
-        res.setQrCode(ut.getQrCode());
-        res.setStatus(ut.getStatus().name());
-        res.setIssuedAt(ut.getIssuedAt());
-        res.setUsedAt(ut.getUsedAt());
-
-        if (ut.getEvent() != null) {
-            ResUserTicketDTO.EventDTO eventDTO = new ResUserTicketDTO.EventDTO();
-            eventDTO.setId(ut.getEvent().getId());
-            eventDTO.setName(ut.getEvent().getName());
-            eventDTO.setLocation(ut.getEvent().getLocation());
-            eventDTO.setStartTime(ut.getEvent().getStartTime());
-            eventDTO.setEndTime(ut.getEvent().getEndTime());
-            res.setEvent(eventDTO);
-        }
-
-        if (ut.getTicket() != null) {
-            ResUserTicketDTO.TicketDTO ticketDTO = new ResUserTicketDTO.TicketDTO();
-            ticketDTO.setId(ut.getTicket().getId());
-            ticketDTO.setTicketType(ut.getTicket().getTicketType() != null
-                    ? ut.getTicket().getTicketType().name() : null);
-            ticketDTO.setPrice(ut.getTicket().getPrice());
-            res.setTicket(ticketDTO);
-        }
-
+        }).collect(Collectors.toList()));
         return res;
     }
 }

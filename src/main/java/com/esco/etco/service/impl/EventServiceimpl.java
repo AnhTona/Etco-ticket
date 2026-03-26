@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import com.esco.etco.entity.Genre;
 
 @Service
 @Slf4j
@@ -40,10 +41,10 @@ public class EventServiceimpl implements EventService {
 
     private final FileService fileService;
     private final EventRepository eventRepository;
-    private final EventImageRepository eventImageRepository; // ★ Thêm
+    private final EventImageRepository eventImageRepository;
 
     public EventServiceimpl(EventRepository eventRepository,
-                            EventImageRepository eventImageRepository,FileService fileService) {
+                            EventImageRepository eventImageRepository, FileService fileService) {
         this.eventRepository = eventRepository;
         this.eventImageRepository = eventImageRepository;
         this.fileService = fileService;
@@ -84,10 +85,9 @@ public class EventServiceimpl implements EventService {
 
     @Override
     public void deleteEventById(long id) {
-       // lấy tất cả ảnh của event đó
         List<EventImage> images = this.eventImageRepository.findByEventId(id);
-
         String folder = "events/" + id;
+
         for(EventImage image : images){
             try{
                 fileService.deleteFile(image.getUrl(), folder);
@@ -95,16 +95,14 @@ public class EventServiceimpl implements EventService {
                 log.error("Không thể xóa file: "+ image.getUrl());
             }
         }
+
         try{
             fileService.deleteDirectory(folder);
         }catch (Exception e){
             log.error("Không thể xóa folder: " + folder);
         }
 
-        // Xóa tất cả EventImage record trong database
         this.eventImageRepository.deleteAllByEventId(id);
-
-        // Xóa Event
         this.eventRepository.deleteById(id);
     }
 
@@ -113,7 +111,6 @@ public class EventServiceimpl implements EventService {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new IdInvalidException("Không tìm thấy sự kiện với id = " + id));
 
-        // Đảo trạng thái: true → false, false → true
         event.setActive(!event.isActive());
         event.setUpdatedAt(Instant.now());
         event.setUpdatedBy(SecurityUtil.getCurrentUserLogin().orElse("system"));
@@ -126,14 +123,11 @@ public class EventServiceimpl implements EventService {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new IdInvalidException("Không tìm thấy sự kiện với id = " + id));
 
-        // Không cho publish nếu event đã qua startTime
         if (!event.isPublished() && event.getStartTime() != null
                 && event.getStartTime().isBefore(Instant.now())) {
-            throw new IdInvalidException(
-                    "Không thể publish sự kiện đã qua thời gian bắt đầu.");
+            throw new IdInvalidException("Không thể publish sự kiện đã qua thời gian bắt đầu.");
         }
 
-        // Đảo trạng thái
         event.setPublished(!event.isPublished());
         event.setUpdatedAt(Instant.now());
         event.setUpdatedBy(SecurityUtil.getCurrentUserLogin().orElse("system"));
@@ -152,17 +146,16 @@ public class EventServiceimpl implements EventService {
         Specification<Event> finalSpec = spec;
 
         if (isOrganizer && !isAdmin) {
-            // Organizer xem của mình
             Specification<Event> ownerSpec = (root, query, cb) -> cb.equal(root.get("createdBy"), currentUser);
             finalSpec = (spec == null) ? ownerSpec : spec.and(ownerSpec);
         } else if (!isAdmin && !isOrganizer) {
-            // User xem sự kiện public
             Specification<Event> publicSpec = (root, query, cb) -> cb.and(
                     cb.isTrue(root.get("isActive")),
                     cb.isTrue(root.get("isPublished"))
             );
             finalSpec = (spec == null) ? publicSpec : spec.and(publicSpec);
         }
+
         Page<Event> pageEvent = this.eventRepository.findAll(finalSpec, pageable);
         ResultPaginationDTO result = new ResultPaginationDTO();
         ResultPaginationDTO.Meta mt = new ResultPaginationDTO.Meta();
@@ -175,19 +168,12 @@ public class EventServiceimpl implements EventService {
 
         List<Event> events = pageEvent.getContent();
 
-        // Lấy tất cả eventId trong page này
-        List<Long> eventIds = events.stream()
-                .map(Event::getId)
-                .collect(Collectors.toList());
+        List<Long> eventIds = events.stream().map(Event::getId).collect(Collectors.toList());
 
-        // 1 query duy nhất lấy TẤT CẢ ảnh của các event trong page
         List<EventImage> allImages = eventImageRepository.findByEventIdIn(eventIds);
-
-        // Group ảnh theo eventId → Map<eventId, List<EventImage>>
         Map<Long, List<EventImage>> imagesByEventId = allImages.stream()
                 .collect(Collectors.groupingBy(img -> img.getEvent().getId()));
 
-        // Convert sang DTO, truyền ảnh đã query sẵn
         List<ResEventDTO> listDTO = events.stream()
                 .map(event -> convertToResEventDTO(event, imagesByEventId.getOrDefault(event.getId(), Collections.emptyList())))
                 .collect(Collectors.toList());
@@ -213,29 +199,30 @@ public class EventServiceimpl implements EventService {
         dto.setCreatedBy(event.getCreatedBy());
         dto.setCreatedAt(event.getCreatedAt());
 
+        // Bổ sung Giấy phép
+        dto.setPermitNumber(event.getPermitNumber());
+        dto.setPermitIssuedAt(event.getPermitIssuedAt());
+        dto.setPermitIssuedBy(event.getPermitIssuedBy());
         dto.setPublished(computePublished(event));
 
-        if (event.getStartTime() != null) {
-            ZonedDateTime start = event.getStartTime().atZone(ZONE_VN);
-            dto.setStartDate(start.toLocalDate().toString());
-            dto.setStartTime(start.toLocalTime().toString());
-        }
-        if (event.getEndTime() != null) {
-            ZonedDateTime end = event.getEndTime().atZone(ZONE_VN);
-            dto.setEndDate(end.toLocalDate().toString());
-            dto.setEndTime(end.toLocalTime().toString());
+        // Bổ sung Thể loại
+        if (event.getGenre() != null) {
+            ResEventDTO.GenreDTO genreDTO = new ResEventDTO.GenreDTO();
+            genreDTO.setId(event.getGenre().getId());
+            genreDTO.setName(event.getGenre().getName());
+            dto.setGenre(genreDTO);
         }
 
-        // Convert ảnh từ list đã truyền vào (KHÔNG dùng event.getImages())
-        dto.setImages(images.stream()
-                .map(img -> {
-                    ResEventDTO.ImageDTO imgDTO = new ResEventDTO.ImageDTO();
-                    imgDTO.setId(img.getId());
-                    imgDTO.setUrl(img.getUrl());
-                    imgDTO.setCover(img.isCover());
-                    return imgDTO;
-                })
-                .collect(Collectors.toList()));
+        // Tối ưu format ngày
+        formatDateTime(event, dto::setStartDate, dto::setStartTime, dto::setEndDate, dto::setEndTime);
+
+        dto.setImages(images.stream().map(img -> {
+            ResEventDTO.ImageDTO imgDTO = new ResEventDTO.ImageDTO();
+            imgDTO.setId(img.getId());
+            imgDTO.setUrl(img.getUrl());
+            imgDTO.setCover(img.isCover());
+            return imgDTO;
+        }).collect(Collectors.toList()));
 
         return dto;
     }
@@ -250,26 +237,20 @@ public class EventServiceimpl implements EventService {
         res.setActive(event.isActive());
         res.setCreatedBy(event.getCreatedBy());
         res.setCreatedAt(event.getCreatedAt());
-
         res.setPublished(computePublished(event));
 
-        // Query ảnh riêng từ EventImageRepository
+        // Bổ sung Thể loại
+        if (event.getGenre() != null) {
+            ResCreateEventDTO.GenreDTO g = new ResCreateEventDTO.GenreDTO();
+            g.setId(event.getGenre().getId());
+            g.setName(event.getGenre().getName());
+            res.setGenre(g);
+        }
+
         List<EventImage> images = eventImageRepository.findByEventId(event.getId());
-        res.setUrlImage(images.stream()
-                .map(EventImage::getUrl)
-                .collect(Collectors.toList()));
+        res.setUrlImage(images.stream().map(EventImage::getUrl).collect(Collectors.toList()));
 
-        if (event.getStartTime() != null) {
-            ZonedDateTime start = event.getStartTime().atZone(ZONE_VN);
-            res.setStartDate(start.toLocalDate().toString());
-            res.setStartTime(start.toLocalTime().toString());
-        }
-        if (event.getEndTime() != null) {
-            ZonedDateTime end = event.getEndTime().atZone(ZONE_VN);
-            res.setEndDate(end.toLocalDate().toString());
-            res.setEndTime(end.toLocalTime().toString());
-        }
-
+        formatDateTime(event, res::setStartDate, res::setStartTime, res::setEndDate, res::setEndTime);
         return res;
     }
 
@@ -283,26 +264,12 @@ public class EventServiceimpl implements EventService {
         res.setActive(event.isActive());
         res.setUpdateBy(event.getUpdatedBy());
         res.setUpdateAt(event.getUpdatedAt());
-
         res.setPublished(computePublished(event));
 
-        // Query ảnh riêng từ EventImageRepository
         List<EventImage> images = eventImageRepository.findByEventId(event.getId());
-        res.setUrlImage(images.stream()
-                .map(EventImage::getUrl)
-                .collect(Collectors.toList()));
+        res.setUrlImage(images.stream().map(EventImage::getUrl).collect(Collectors.toList()));
 
-        if (event.getStartTime() != null) {
-            ZonedDateTime start = event.getStartTime().atZone(ZONE_VN);
-            res.setStartDate(start.toLocalDate().toString());
-            res.setStartTime(start.toLocalTime().toString());
-        }
-        if (event.getEndTime() != null) {
-            ZonedDateTime end = event.getEndTime().atZone(ZONE_VN);
-            res.setEndDate(end.toLocalDate().toString());
-            res.setEndTime(end.toLocalTime().toString());
-        }
-
+        formatDateTime(event, res::setStartDate, res::setStartTime, res::setEndDate, res::setEndTime);
         return res;
     }
 
@@ -312,21 +279,40 @@ public class EventServiceimpl implements EventService {
         event.setPermitNumber(dto.getPermitNumber());
         event.setPermitIssuedBy(dto.getPermitIssuedBy());
         event.setLocation(dto.getLocation());
+
         event.setPermitIssuedAt(parseDateToInstant(dto.getPermitIssuedAt()));
         event.setStartTime(combineDateAndTime(dto.getStartDate(), dto.getStartTime()));
         event.setEndTime(combineDateAndTime(dto.getEndDate(), dto.getEndTime()));
+
+        // Bổ sung map Thể loại
+        if (dto.getGenreId() != null) {
+            Genre genre = new Genre();
+            genre.setId(dto.getGenreId());
+            event.setGenre(genre);
+        }
+    }
+
+    private void formatDateTime(Event event, java.util.function.Consumer<String> setSD,
+                                java.util.function.Consumer<String> setST,
+                                java.util.function.Consumer<String> setED,
+                                java.util.function.Consumer<String> setET) {
+        if (event.getStartTime() != null) {
+            ZonedDateTime start = event.getStartTime().atZone(ZONE_VN);
+            setSD.accept(start.toLocalDate().toString());
+            setST.accept(start.toLocalTime().toString());
+        }
+        if (event.getEndTime() != null) {
+            ZonedDateTime end = event.getEndTime().atZone(ZONE_VN);
+            setED.accept(end.toLocalDate().toString());
+            setET.accept(end.toLocalTime().toString());
+        }
     }
 
     private Instant combineDateAndTime(String dateStr, String timeStr) {
-        LocalDate date = LocalDate.parse(dateStr);
-        LocalTime time = LocalTime.parse(timeStr);
-        ZonedDateTime zdt = ZonedDateTime.of(date, time, ZONE_VN);
-        return zdt.toInstant();
+        return ZonedDateTime.of(LocalDate.parse(dateStr), LocalTime.parse(timeStr), ZONE_VN).toInstant();
     }
 
     private Instant parseDateToInstant(String dateStr) {
-        LocalDate date = LocalDate.parse(dateStr);
-        ZonedDateTime zdt = date.atStartOfDay(ZONE_VN);
-        return zdt.toInstant();
+        return LocalDate.parse(dateStr).atStartOfDay(ZONE_VN).toInstant();
     }
 }
