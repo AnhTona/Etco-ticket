@@ -79,6 +79,8 @@ public class EventController {
     public ResponseEntity<ResultPaginationDTO> getAllEvents(
             @Filter Specification<Event> spec,
             Pageable pageable) {
+
+
         return ResponseEntity.ok(eventService.getAllEvents(spec, pageable));
     }
 
