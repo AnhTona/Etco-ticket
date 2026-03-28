@@ -315,4 +315,42 @@ public class EventServiceimpl implements EventService {
     private Instant parseDateToInstant(String dateStr) {
         return LocalDate.parse(dateStr).atStartOfDay(ZONE_VN).toInstant();
     }
+
+    @Override
+    public List<ResEventDTO> getRecommendedEvents(List<Long> eventIds) {
+        if (eventIds == null || eventIds.isEmpty()) return Collections.emptyList();
+
+        // Lấy danh sách Event từ DB
+        List<Event> events = eventRepository.findAllById(eventIds);
+
+        // Lấy hình ảnh để map vào DTO (giống logic trong getAllEvents của bạn)
+        List<EventImage> allImages = eventImageRepository.findByEventIdIn(eventIds);
+        Map<Long, List<EventImage>> imagesByEventId = allImages.stream()
+                .collect(Collectors.groupingBy(img -> img.getEvent().getId()));
+
+        // Convert sang ResEventDTO
+        return events.stream()
+                .map(event -> convertToResEventDTO(event, imagesByEventId.getOrDefault(event.getId(), Collections.emptyList())))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ResEventDTO> getFallbackRecommendations() {
+        // Lấy top 10 sự kiện mới nhất từ DB
+        List<Event> events = eventRepository.findTop10ByIsActiveTrueAndIsPublishedTrueOrderByCreatedAtDesc();
+
+        if (events.isEmpty()) return Collections.emptyList();
+
+        // Lấy danh sách ID để query ảnh
+        List<Long> eventIds = events.stream().map(Event::getId).collect(Collectors.toList());
+
+        // Lấy ảnh và map giống hệt hàm getRecommendedEvents
+        List<EventImage> allImages = eventImageRepository.findByEventIdIn(eventIds);
+        Map<Long, List<EventImage>> imagesByEventId = allImages.stream()
+                .collect(Collectors.groupingBy(img -> img.getEvent().getId()));
+
+        return events.stream()
+                .map(event -> convertToResEventDTO(event, imagesByEventId.getOrDefault(event.getId(), Collections.emptyList())))
+                .collect(Collectors.toList());
+    }
 }

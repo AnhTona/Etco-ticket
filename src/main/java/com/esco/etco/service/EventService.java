@@ -4,9 +4,12 @@ import com.esco.etco.entity.Event;
 import com.esco.etco.entity.request.ReqEventDTO;
 import com.esco.etco.entity.response.ResultPaginationDTO;
 import com.esco.etco.entity.response.event.ResCreateEventDTO;
+import com.esco.etco.entity.response.event.ResEventDTO;
 import com.esco.etco.entity.response.event.ResUpdateEventDTO;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+
+import java.util.List;
 
 public interface EventService {
     ResCreateEventDTO createEvent(ReqEventDTO dto);
@@ -27,4 +30,8 @@ public interface EventService {
 
     Event togglePublished(long id) throws Exception;
 
+    List<ResEventDTO> getRecommendedEvents(List<Long> eventIds);
+
+    List<ResEventDTO> getFallbackRecommendations();
 }
+
