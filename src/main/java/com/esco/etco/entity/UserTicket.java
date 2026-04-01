@@ -40,4 +40,8 @@ public class UserTicket {
     @ManyToOne
     @JoinColumn(name = "order_id")
     private Order order;
+
+    @ManyToOne
+    @JoinColumn(name = "seat_id")
+    private Seat seat;
 }

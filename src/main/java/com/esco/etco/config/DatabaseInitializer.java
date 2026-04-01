@@ -6,6 +6,7 @@ import com.esco.etco.entity.User;
 import com.esco.etco.repository.PermissionRepository;
 import com.esco.etco.repository.RoleRepository;
 import com.esco.etco.repository.UserRepository;
+import com.esco.etco.util.constant.ApiPaths;
 import com.esco.etco.util.constant.GenderEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -46,54 +47,82 @@ public class DatabaseInitializer implements CommandLineRunner {
         if (countPermissions == 0) {
             ArrayList<Permission> arr = new ArrayList<>();
 
-            arr.add(new Permission("Create a permission", "/api/v1/permissions", "POST", "PERMISSIONS"));
-            arr.add(new Permission("Update a permission", "/api/v1/permissions", "PUT", "PERMISSIONS"));
-            arr.add(new Permission("Delete a permission", "/api/v1/permissions/{id}", "DELETE", "PERMISSIONS"));
-            arr.add(new Permission("Get a permission by id", "/api/v1/permissions/{id}", "GET", "PERMISSIONS"));
-            arr.add(new Permission("Get permissions with pagination", "/api/v1/permissions", "GET", "PERMISSIONS"));
+            // Permissions
+            arr.add(new Permission("Create a permission", ApiPaths.PERMISSIONS_API, "POST", "PERMISSIONS"));
+            arr.add(new Permission("Update a permission", ApiPaths.PERMISSIONS_API, "PUT", "PERMISSIONS"));
+            arr.add(new Permission("Delete a permission", ApiPaths.PERMISSIONS_API + "/{id}", "DELETE", "PERMISSIONS"));
+            arr.add(new Permission("Get a permission by id", ApiPaths.PERMISSIONS_API + "/{id}", "GET", "PERMISSIONS"));
+            arr.add(new Permission("Get permissions with pagination", ApiPaths.PERMISSIONS_API, "GET", "PERMISSIONS"));
 
-            arr.add(new Permission("Create a role", "/api/v1/roles", "POST", "ROLES"));
-            arr.add(new Permission("Update a role", "/api/v1/roles", "PUT", "ROLES"));
-            arr.add(new Permission("Delete a role", "/api/v1/roles/{id}", "DELETE", "ROLES"));
-            arr.add(new Permission("Get a role by id", "/api/v1/roles/{id}", "GET", "ROLES"));
-            arr.add(new Permission("Get roles with pagination", "/api/v1/roles", "GET", "ROLES"));
+            // Roles
+            arr.add(new Permission("Create a role", ApiPaths.ROLES_API, "POST", "ROLES"));
+            arr.add(new Permission("Update a role", ApiPaths.ROLES_API, "PUT", "ROLES"));
+            arr.add(new Permission("Delete a role", ApiPaths.ROLES_API + "/{id}", "DELETE", "ROLES"));
+            arr.add(new Permission("Get a role by id", ApiPaths.ROLES_API + "/{id}", "GET", "ROLES"));
+            arr.add(new Permission("Get roles with pagination", ApiPaths.ROLES_API, "GET", "ROLES"));
 
-            arr.add(new Permission("Create a user", "/api/v1/users", "POST", "USERS"));
-            arr.add(new Permission("Delete a user", "/api/v1/users/{id}", "DELETE", "USERS"));
-            arr.add(new Permission("Get users with pagination", "/api/v1/users", "GET", "USERS"));
+            // Users
+            arr.add(new Permission("Create a user", ApiPaths.USERS_API, "POST", "USERS"));
+            arr.add(new Permission("Delete a user", ApiPaths.USERS_API + "/{id}", "DELETE", "USERS"));
+            arr.add(new Permission("Get users with pagination", ApiPaths.USERS_API, "GET", "USERS"));
+            arr.add(new Permission("Update a user", ApiPaths.USERS_API, "PUT", "USERS"));
+            arr.add(new Permission("Get a user by id", ApiPaths.USERS_API + "/{id}", "GET", "USERS"));
 
-            arr.add(new Permission("Create a Genre", "/api/v1/genres", "POST", "GENRES"));
-            arr.add(new Permission("Update a Genre", "/api/v1/genres", "PUT", "GENRES"));
-            arr.add(new Permission("Delete a Genre", "/api/v1/genres/{id}", "DELETE", "GENRES"));
-            arr.add(new Permission("Get a Genre by id", "/api/v1/genres/{id}", "GET", "GENRES"));
-            arr.add(new Permission("Get Genre with pagination", "/api/v1/genres", "GET", "GENRES"));
+            // Genres
+            arr.add(new Permission("Create a Genre", ApiPaths.GENRES_API, "POST", "GENRES"));
+            arr.add(new Permission("Update a Genre", ApiPaths.GENRES_API, "PUT", "GENRES"));
+            arr.add(new Permission("Delete a Genre", ApiPaths.GENRES_API + "/{id}", "DELETE", "GENRES"));
 
-            arr.add(new Permission("Create a Event", "/api/v1/events", "POST", "EVENTS"));
-            arr.add(new Permission("Update a Event", "/api/v1/events", "PUT", "EVENTS"));
-            arr.add(new Permission("Delete a Event", "/api/v1/events/{id}", "DELETE", "EVENTS"));
-            arr.add(new Permission("Get a Event by id", "/api/v1/events/{id}", "GET", "EVENTS"));
-            arr.add(new Permission("Get Event with pagination", "/api/v1/events", "GET", "EVENTS"));
-            arr.add(new Permission("Toggle Active", "/api/v1/events/{id}/active", "PATCH", "EVENTS"));
-            arr.add(new Permission("Toggle Published", "/api/v1/events/{id}/published", "PATCH", "EVENTS"));
+            // Events
+            arr.add(new Permission("Create a Event", ApiPaths.EVENTS_API, "POST", "EVENTS"));
+            arr.add(new Permission("Update a Event", ApiPaths.EVENTS_API, "PUT", "EVENTS"));
+            arr.add(new Permission("Delete a Event", ApiPaths.EVENTS_API + "/{id}", "DELETE", "EVENTS"));
+            arr.add(new Permission("Toggle Active", ApiPaths.EVENTS_API + "/{id}/active", "PATCH", "EVENTS"));
+            arr.add(new Permission("Toggle Published", ApiPaths.EVENTS_API + "/{id}/published", "PATCH", "EVENTS"));
 
-            arr.add(new Permission("Update a user", "/api/v1/users", "PUT", "USERS"));
-            arr.add(new Permission("Get a user by id", "/api/v1/users/{id}", "GET", "USERS"));
+            // Tickets
+            arr.add(new Permission("Create Tickets", ApiPaths.TICKETS_API, "POST", "TICKETS"));
+            arr.add(new Permission("Update Tickets", ApiPaths.TICKETS_API + "/{id}", "PUT", "TICKETS"));
 
-            arr.add(new Permission("Create Tickets", "/api/v1/tickets", "POST", "TICKETS"));
-            arr.add(new Permission("Update Tickets", "/api/v1/tickets/{id}", "PUT", "TICKETS"));
-            arr.add(new Permission("Get a Tickets", "/api/v1/tickets/{id}", "GET", "TICKETS"));
-            arr.add(new Permission("Get Tickets with pagination", "/api/v1/tickets", "GET", "TICKETS"));
+            // Orders
+            arr.add(new Permission("Create an order", ApiPaths.CLIENT_ORDERS_API, "POST", "ORDERS"));
+            arr.add(new Permission("Pay an order", ApiPaths.CLIENT_ORDERS_API + "/pay", "POST", "ORDERS"));
+            arr.add(new Permission("Get an order by id", ApiPaths.CLIENT_ORDERS_API + "/{id}", "GET", "ORDERS"));
+            arr.add(new Permission("Get orders with pagination", ApiPaths.CLIENT_ORDERS_API, "GET", "ORDERS"));
+            arr.add(new Permission("Get my tickets", ApiPaths.CLIENT_ORDERS_API + "/my-tickets", "GET", "ORDERS"));
+            arr.add(new Permission("Verify QR Code", ApiPaths.CLIENT_ORDERS_API + "/verify-qr", "POST", "ORDERS"));
 
-            arr.add(new Permission("Create an order", "/api/v1/orders", "POST", "ORDERS"));
-            arr.add(new Permission("Pay an order", "/api/v1/orders/pay", "POST", "ORDERS"));
-            arr.add(new Permission("Get an order by id", "/api/v1/orders/{id}", "GET", "ORDERS"));
-            arr.add(new Permission("Get orders with pagination", "/api/v1/orders", "GET", "ORDERS"));
-            arr.add(new Permission("Get my tickets", "/api/v1/orders/my-tickets", "GET", "ORDERS"));
-            arr.add(new Permission("Verify QR Code", "/api/v1/orders/verify-qr", "POST", "ORDERS"));
+            // Files
+            arr.add(new Permission("Upload a file", ApiPaths.EVENTS_API + "/{eventId}/images", "POST", "FILES"));
+            arr.add(new Permission("Update a file", ApiPaths.EVENTS_API + "/{eventId}/images/{imageId}", "PUT", "FILES"));
+            arr.add(new Permission("Delete a file", ApiPaths.EVENTS_API + "/{eventId}/images/{imageId}", "DELETE", "FILES"));
 
-            arr.add(new Permission("Upload a file", "/api/v1/events/{eventId}/images", "POST", "FILES"));
-            arr.add(new Permission("Update a file", "/api/v1/events/{eventId}/images/{imageId}", "PUT", "FILES"));
-            arr.add(new Permission("Delete a file", "/api/v1/events/{eventId}/images/{imageId}", "DELETE", "FILES"));
+            // Producer Management
+            arr.add(new Permission("Create Producer", ApiPaths.PRODUCERS_API, "POST", "PRODUCER"));
+            arr.add(new Permission("Update Producer", ApiPaths.PRODUCERS_API + "/{id}", "PUT", "PRODUCER"));
+            arr.add(new Permission("Delete Producer", ApiPaths.PRODUCERS_API + "/{id}", "DELETE", "PRODUCER"));
+            arr.add(new Permission("Get All Producers", ApiPaths.PRODUCERS_API, "GET", "PRODUCER"));
+            arr.add(new Permission("Get Producer by ID", ApiPaths.PRODUCERS_API + "/{id}", "GET", "PRODUCER"));
+
+            // Seat Management
+            arr.add(new Permission("Create Seat", ApiPaths.SEATS_API, "POST", "SEAT"));
+            arr.add(new Permission("Update Seat", ApiPaths.SEATS_API + "/{id}", "PUT", "SEAT"));
+            arr.add(new Permission("Delete Seat", ApiPaths.SEATS_API + "/{id}", "DELETE", "SEAT"));
+            arr.add(new Permission("Get Seat by ID", ApiPaths.SEATS_API + "/{id}", "GET", "SEAT"));
+            arr.add(new Permission("Get Seats by Event", ApiPaths.SEATS_API + "/event/{eventId}", "GET", "SEAT"));
+
+            // Transaction Management
+            arr.add(new Permission("Create Transaction", ApiPaths.TRANSACTIONS_API, "POST", "TRANSACTION"));
+            arr.add(new Permission("Update Transaction", ApiPaths.TRANSACTIONS_API + "/{id}", "PUT", "TRANSACTION"));
+            arr.add(new Permission("Get All Transactions", ApiPaths.TRANSACTIONS_API, "GET", "TRANSACTION"));
+            arr.add(new Permission("Get Transaction by ID", ApiPaths.TRANSACTIONS_API + "/{id}", "GET", "TRANSACTION"));
+
+            // User Ticket Management
+            arr.add(new Permission("Create User Ticket", ApiPaths.USER_TICKETS_API, "POST", "USER_TICKET"));
+            arr.add(new Permission("Update User Ticket", ApiPaths.USER_TICKETS_API + "/{id}", "PUT", "USER_TICKET"));
+            arr.add(new Permission("Get All User Tickets", ApiPaths.USER_TICKETS_API, "GET", "USER_TICKET"));
+            arr.add(new Permission("Get User Ticket by ID", ApiPaths.USER_TICKETS_API + "/{id}", "GET", "USER_TICKET"));
+            arr.add(new Permission("Get Tickets by User", ApiPaths.USER_TICKETS_API + "/user/{userId}", "GET", "USER_TICKET"));
 
             this.permissionRepository.saveAll(arr);
         }
@@ -138,38 +167,37 @@ public class DatabaseInitializer implements CommandLineRunner {
         this.roleRepository.save(adminRole);
     }
 
-    // từ đây trở xuống là để test không phải data thật
     private void createCustomerRole(List<Permission> allPermissions) {
         List<Permission> customerPermissions = allPermissions.stream()
                 .filter(p ->
                         // Quyền xem và cập nhật thông tin user
-                        (p.getApiPath().equals("/api/v1/users/{id}") && p.getMethod().equals("GET")) ||
-                                (p.getApiPath().equals("/api/v1/users") && p.getMethod().equals("PUT")) ||
+                        (p.getApiPath().equals(ApiPaths.USERS_API + "/{id}") && p.getMethod().equals("GET")) ||
+                                (p.getApiPath().equals(ApiPaths.USERS_API) && p.getMethod().equals("PUT")) ||
 
-                                // Quyền xem events
-                                (p.getApiPath().equals("/api/v1/events") && p.getMethod().equals("GET")) ||
-                                (p.getApiPath().equals("/api/v1/events/{id}") && p.getMethod().equals("GET")) ||
+                                // Quyền xem events (public)
+                                (p.getApiPath().startsWith(ApiPaths.EVENTS_API) && p.getMethod().equals("GET")) ||
 
-                                // Quyền xem genres
-                                (p.getApiPath().equals("/api/v1/genres") && p.getMethod().equals("GET")) ||
-                                (p.getApiPath().equals("/api/v1/genres/{id}") && p.getMethod().equals("GET")) ||
+                                // Quyền xem genres (public)
+                                (p.getApiPath().startsWith(ApiPaths.GENRES_API) && p.getMethod().equals("GET")) ||
 
-                                // Quyền xem tickets
-                                (p.getApiPath().equals("/api/v1/tickets") && p.getMethod().equals("GET")) ||
-                                (p.getApiPath().equals("/api/v1/tickets/{id}") && p.getMethod().equals("GET")) ||
+                                // Quyền xem tickets (public)
+                                (p.getApiPath().startsWith(ApiPaths.TICKETS_API) && p.getMethod().equals("GET")) ||
 
-                                // ✅ MỚI: Quyền đặt hàng, thanh toán, xem vé đã mua
-                                (p.getApiPath().equals("/api/v1/orders") && p.getMethod().equals("POST")) ||
-                                (p.getApiPath().equals("/api/v1/orders/pay") && p.getMethod().equals("POST")) ||
-                                (p.getApiPath().equals("/api/v1/orders/{id}") && p.getMethod().equals("GET")) ||
-                                (p.getApiPath().equals("/api/v1/orders") && p.getMethod().equals("GET")) ||
-                                (p.getApiPath().equals("/api/v1/orders/my-tickets") && p.getMethod().equals("GET"))
+                                // Quyền xem sơ đồ ghế (public)
+                                (p.getApiPath().equals(ApiPaths.SEATS_API + "/event/{eventId}") && p.getMethod().equals("GET")) ||
+
+                                // Quyền đặt hàng, thanh toán, xem vé đã mua
+                                (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API) && p.getMethod().equals("POST")) ||
+                                (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API + "/pay") && p.getMethod().equals("POST")) ||
+                                (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API + "/{id}") && p.getMethod().equals("GET")) ||
+                                (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API) && p.getMethod().equals("GET")) ||
+                                (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API + "/my-tickets") && p.getMethod().equals("GET"))
                 )
                 .collect(Collectors.toList());
 
         Role customerRole = new Role();
         customerRole.setName("CUSTOMER");
-        customerRole.setDescription("Customer chỉ được xem và cập nhật thông tin cá nhân");
+        customerRole.setDescription("Customer chỉ được xem và cập nhật thông tin cá nhân, đặt vé.");
         customerRole.setActive(true);
         customerRole.setPermissions(customerPermissions);
         this.roleRepository.save(customerRole);
@@ -181,14 +209,15 @@ public class DatabaseInitializer implements CommandLineRunner {
                         p.getModule().equals("EVENTS") ||
                                 p.getModule().equals("FILES") ||
                                 p.getModule().equals("TICKETS") ||
-                                (p.getApiPath().equals("/api/v1/users/{id}") && p.getMethod().equals("GET")) ||
-                                (p.getApiPath().equals("/api/v1/users") && p.getMethod().equals("PUT"))
+                                p.getModule().equals("SEAT") || // Thêm quyền quản lý ghế
+                                (p.getApiPath().equals(ApiPaths.USERS_API + "/{id}") && p.getMethod().equals("GET")) ||
+                                (p.getApiPath().equals(ApiPaths.USERS_API) && p.getMethod().equals("PUT"))
                 )
                 .collect(Collectors.toList());
 
         Role organizerRole = new Role();
         organizerRole.setName("ORGANIZER");
-        organizerRole.setDescription("Organizer quản lý sự kiện và thông tin cá nhân");
+        organizerRole.setDescription("Organizer quản lý sự kiện, vé, ghế và thông tin cá nhân");
         organizerRole.setActive(true);
         organizerRole.setPermissions(organizerPermissions);
         this.roleRepository.save(organizerRole);

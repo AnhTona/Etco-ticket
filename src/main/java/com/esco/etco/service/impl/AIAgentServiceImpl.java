@@ -37,6 +37,8 @@ public class AIAgentServiceImpl implements AIAgentService {
     private final TicketRepository ticketRepository;
     private final OrderRepository orderRepository;
     private final GenreRepository genreRepository;
+    private final RecommendationService recommendationService;
+    private final UserRepository userRepository;
 
     public AIAgentServiceImpl(OllamaService ollamaService,
                               RAGService ragService,
@@ -44,7 +46,9 @@ public class AIAgentServiceImpl implements AIAgentService {
                               EventRepository eventRepository,
                               TicketRepository ticketRepository,
                               OrderRepository orderRepository,
-                              GenreRepository genreRepository) {
+                              GenreRepository genreRepository,
+                              RecommendationService recommendationService,
+                              UserRepository userRepository) {
         this.ollamaService = ollamaService;
         this.ragService = ragService;
         this.chatMessageRepository = chatMessageRepository;
@@ -52,6 +56,8 @@ public class AIAgentServiceImpl implements AIAgentService {
         this.ticketRepository = ticketRepository;
         this.orderRepository = orderRepository;
         this.genreRepository = genreRepository;
+        this.recommendationService = recommendationService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -98,6 +104,16 @@ public class AIAgentServiceImpl implements AIAgentService {
                     toolsUsed.add("SEARCH_BY_GENRE");
                     allContext.append("=== SỰ KIỆN THEO THỂ LOẠI ===\n").append(genreResult).append("\n");
                 }
+            }
+        }
+
+        // Xử lý gợi ý sự kiện (Recommendation Agentic RAG)
+        if (intents.contains("RECOMMEND_EVENTS")) {
+            log.info(">>> AGENT: Intent RECOMMEND_EVENTS detected");
+            String recommendResult = executeRecommendationSearch(dto.getMessage());
+            if (!recommendResult.isEmpty()) {
+                toolsUsed.add("RECOMMEND_EVENTS");
+                allContext.append("=== GỢI Ý CÁ NHÂN HÓA (AGENTIC RAG) ===\n").append(recommendResult).append("\n");
             }
         }
 
@@ -184,6 +200,11 @@ public class AIAgentServiceImpl implements AIAgentService {
         List<String> intents = new ArrayList<>();
         String lower = message.toLowerCase();
 
+        // Gợi ý sự kiện
+        if (lower.contains("gợi ý") || lower.contains("giới thiệu") || lower.contains("recommend") || lower.contains("có gì hay") || lower.contains("sự kiện nào giống")) {
+            intents.add("RECOMMEND_EVENTS");
+        }
+
         if (lower.contains("thể loại") || lower.contains("genre") || lower.contains("loại hình")
                 || lower.contains("ca nhạc") || lower.contains("hội thảo") || lower.contains("triển lãm")) {
             intents.add("SEARCH_BY_GENRE");
@@ -209,6 +230,82 @@ public class AIAgentServiceImpl implements AIAgentService {
             intents.add("RAG_SEARCH");
         }
         return intents;
+    }
+
+    /**
+     * Tool: Lấy dữ liệu Gợi ý Sự kiện cá nhân hóa (Agentic RAG kết nối Database)
+     */
+    private String executeRecommendationSearch(String message) {
+        try {
+            // Lấy current user ID
+            Optional<String> currentUserEmail = SecurityUtil.getCurrentUserLogin();
+            if (currentUserEmail.isEmpty() || currentUserEmail.get().equals("anonymousUser")) {
+                return "Bạn cần đăng nhập để tôi có thể gợi ý sự kiện phù hợp nhất với sở thích của bạn nhé!";
+            }
+
+            var user = this.userRepository.findByEmail(currentUserEmail.get());
+            if (user == null) {
+                return "Lỗi xác thực người dùng để gợi ý.";
+            }
+
+            // Gọi RecommendationService lấy top event IDs
+            List<Long> recommendedIds = recommendationService.getRecommendedEventIds(user.getId());
+
+            // Tự động tìm cả nghệ sĩ user có nhắc đến trong câu không để query thẳng (agent behavior)
+            String artistName = extractArtistName(message);
+            List<Event> additionalArtistEvents = new ArrayList<>();
+            if (!artistName.equals("KHONG_CO")) {
+                // Lọc sự kiện đang bán chứa tên nghệ sĩ này
+                additionalArtistEvents = eventRepository.findAll().stream()
+                        .filter(e -> e.getEndTime() != null && e.getEndTime().isAfter(Instant.now()))
+                        .filter(e -> e.isActive() && e.isPublished())
+                        .filter(e -> e.getArtists() != null && e.getArtists().stream().anyMatch(a -> a.toLowerCase().contains(artistName.toLowerCase())))
+                        .toList();
+            }
+
+            if (recommendedIds.isEmpty() && additionalArtistEvents.isEmpty()) {
+                return "Rất tiếc, hiện tại tôi chưa có đủ dữ liệu lịch sử hoặc không tìm thấy sự kiện nào tương đồng để gợi ý cho bạn.";
+            }
+
+            // Lấy thông tin chi tiết các Event từ DB
+            List<Event> recommendedEvents = recommendedIds.stream()
+                    .map(id -> eventRepository.findById(id).orElse(null))
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            // Gộp danh sách gợi ý + nghệ sĩ (tránh trùng lặp)
+            Set<Event> finalEvents = new HashSet<>(recommendedEvents);
+            finalEvents.addAll(additionalArtistEvents);
+
+            // Xây dựng Context String cho Agent LLM
+            StringBuilder sb = new StringBuilder("Dưới đây là các sự kiện gợi ý tốt nhất dành cho bạn:\n");
+            for (Event e : finalEvents) {
+                sb.append("• ").append(e.getName())
+                        .append("\n  - Nghệ sĩ: ").append(e.getArtists() != null ? String.join(", ", e.getArtists()) : "Đang cập nhật")
+                        .append("\n  - Thể loại: ").append(e.getGenre() != null ? e.getGenre().getName() : "Khác")
+                        .append("\n  - Địa điểm: ").append(e.getLocation())
+                        .append("\n  - Bắt đầu: ").append(e.getStartTime())
+                        .append("\n\n");
+            }
+            return sb.toString();
+
+        } catch (Exception e) {
+            log.error(">>> TOOL RECOMMEND: {}", e.getMessage());
+            return "Lỗi khi lấy dữ liệu gợi ý cá nhân hóa.";
+        }
+    }
+
+    private String extractArtistName(String message) {
+        String prompt = "Nhiệm vụ: Trích xuất tên ca sĩ/nghệ sĩ cụ thể từ câu hỏi (Ví dụ: Sơn Tùng M-TP, Binz, Đen Vâu).\n" +
+                "Nếu không nhắc đến nghệ sĩ nào, hãy in ra: KHONG_CO\n" +
+                "Chỉ in đúng tên nghệ sĩ, không in gì thêm.\n" +
+                "Câu hỏi: " + message;
+
+        String extractedName = this.ollamaService.chat(
+                List.of(Map.of("role", "user", "content", prompt)), 0.1);
+        
+        extractedName = extractedName.trim().replaceAll("[\"']", "");
+        return extractedName;
     }
 
     /**
@@ -266,6 +363,7 @@ public class AIAgentServiceImpl implements AIAgentService {
             StringBuilder sb = new StringBuilder("Danh sách sự kiện:\n");
             for (Event e : events) {
                 sb.append("• ").append(e.getName())
+                        .append(" | Nghệ sĩ: ").append(e.getArtists() != null ? String.join(", ", e.getArtists()) : "Đang cập nhật")
                         .append(" | Địa điểm: ").append(e.getLocation())
                         .append(" | Thời gian: ").append(e.getStartTime())
                         .append("\n");
@@ -370,10 +468,9 @@ public class AIAgentServiceImpl implements AIAgentService {
         userPrompt.append(userMessage);
 
         if (toolContext != null && !toolContext.isEmpty()) {
-            userPrompt.append("\n\n--- DỮ LIỆU THAM KHẢO ---\n").append(toolContext);
+            userPrompt.append("\n\n--- DỮ LIỆU THAM KHẢO TỪ HỆ THỐNG ---\n").append(toolContext);
             userPrompt.append("\n--- HẾT DỮ LIỆU ---\n");
-            userPrompt.append("\nTrả lời dựa trên dữ liệu tham khảo phía trên. ");
-            userPrompt.append("Nếu dữ liệu không đủ, nói rõ. Trả lời bằng tiếng Việt.");
+            userPrompt.append("\nNhiệm vụ của bạn là tổng hợp các dữ liệu trên thành một câu trả lời tự nhiên nhất. Nếu là dữ liệu gợi ý, hãy giới thiệu thật hấp dẫn dựa trên danh sách nghệ sĩ/thể loại. Trả lời bằng tiếng Việt.");
         }
 
         messages.add(Map.of("role", "user", "content", userPrompt.toString()));
@@ -390,8 +487,8 @@ public class AIAgentServiceImpl implements AIAgentService {
                 2. Đọc CHÍNH XÁC số lượng vé và giá tiền từ DỮ LIỆU THAM KHẢO. Cấm tự bịa số liệu (như "1 vé", "2 vé") nếu dữ liệu không ghi.
                 3. Trả lời bằng tiếng Việt tự nhiên, giống người thật đang chat.
                 4. Nếu DỮ LIỆU THAM KHẢO báo không có thông tin, hãy nói xin lỗi khách: "Dạ, hiện em chưa tìm thấy thông tin vé cho sự kiện này ạ.
-                5. Bạn là một trợ lý ảo hoạt động theo từng phiên (session-based). Bạn CHỈ ĐƯỢC PHÉP sử dụng thông tin từ lịch sử trò chuyện của phiên hiện tại. Tuyệt đối không được sử dụng, nhắc lại hoặc suy luận dựa trên thông tin từ các người dùng hoặc phiên làm việc khác mà bạn đã xử lý trước đó. Mỗi yêu cầu mới từ người dùng phải được coi là một ngữ cảnh độc lập trừ khi có dữ liệu lịch sử cụ thể của chính người dùng đó được cung cấp.
-                6. Khi người dùng hỏi thể loại sự kiện nào hãy tìm trong events sẽ có genres_id và dựa vào đó để tìm.
+                5. Bạn là một trợ lý ảo hoạt động theo từng phiên (session-based). Bạn CHỈ ĐƯỢC PHÉP sử dụng thông tin từ lịch sử trò chuyện của phiên hiện tại.
+                6. Khi gợi ý sự kiện (Recommendation), hãy nói cho người dùng biết tại sao bạn gợi ý sự kiện đó (Ví dụ: 'Dạ, vì trước đây anh/chị từng đi xem Binz, nên em xin phép gợi ý sự kiện này có nghệ sĩ cùng dòng nhạc...').
                 """;
         return Map.of("role", "system", "content", systemPrompt);
     }

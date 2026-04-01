@@ -1,8 +1,13 @@
 package com.esco.etco.entity;
 
 import com.esco.etco.util.SecurityUtil;
+import com.esco.etco.util.constant.EventStatusEnum;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -20,6 +25,7 @@ import lombok.Setter;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "events")
@@ -72,21 +78,51 @@ public class Event {
     @JoinColumn(name = "genre_id")
     private Genre genre;
 
+    @ManyToOne
+    @JoinColumn(name = "producer_id")
+    private Producer producer;
+
+    @Enumerated(EnumType.STRING)
+    private EventStatusEnum status;
+
+    @ElementCollection
+    @CollectionTable(name = "event_artists", joinColumns = @JoinColumn(name = "event_id"))
+    @Column(name = "artist_name")
+    private Set<String> artists;
+
     @PrePersist
     public void handleBeforeCreate() {
-        this.createdBy = SecurityUtil.getCurrentUserLogin().isPresent() == true
-                ? SecurityUtil.getCurrentUserLogin().get()
-                : "";
-
+        this.createdBy = SecurityUtil.getCurrentUserLogin().orElse("system");
         this.createdAt = Instant.now();
+
+        Instant now = Instant.now();
+        if (this.startTime != null && this.endTime != null) {
+            if (now.isBefore(this.startTime)) {
+                this.status = EventStatusEnum.UPCOMING;
+            } else if (now.isAfter(this.endTime)) {
+                this.status = EventStatusEnum.COMPLETED;
+            } else {
+                this.status = EventStatusEnum.ONGOING;
+            }
+        } else if (this.status == null) {
+            this.status = EventStatusEnum.UPCOMING;
+        }
     }
 
     @PreUpdate
     public void handleBeforeUpdate() {
-        this.updatedBy = SecurityUtil.getCurrentUserLogin().isPresent() == true
-                ? SecurityUtil.getCurrentUserLogin().get()
-                : "";
-
+        this.updatedBy = SecurityUtil.getCurrentUserLogin().orElse("system");
         this.updatedAt = Instant.now();
+
+        Instant now = Instant.now();
+        if (this.startTime != null && this.endTime != null) {
+            if (now.isBefore(this.startTime)) {
+                this.status = EventStatusEnum.UPCOMING;
+            } else if (now.isAfter(this.endTime)) {
+                this.status = EventStatusEnum.COMPLETED;
+            } else {
+                this.status = EventStatusEnum.ONGOING;
+            }
+        }
     }
 }

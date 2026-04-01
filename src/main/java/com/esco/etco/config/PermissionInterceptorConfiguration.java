@@ -1,22 +1,9 @@
 package com.esco.etco.config;
 
-import java.util.List;
-
-import com.esco.etco.entity.Permission;
-import com.esco.etco.entity.Role;
-import com.esco.etco.entity.User;
 import com.esco.etco.service.UserService;
-import com.esco.etco.util.SecurityUtil;
-import com.esco.etco.util.error.PermissionException;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.esco.etco.util.constant.ApiPaths;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.servlet.HandlerInterceptor;
-import org.springframework.web.servlet.HandlerMapping;
-
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -37,11 +24,15 @@ public class PermissionInterceptorConfiguration implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         String[] whiteList = {
-                "/", "/api/v1/auth/**", "/storage/**",
-                "/api/v1/events/**", "/api/v1/files",
+                "/",
+                ApiPaths.AUTH_API + "/**",
+                "/storage/**",
+                "/api/v1/files",
+                "/api/v1/events/**",
                 "/api/v1/tickets/**",
-                "/api/v1/genres/**", "/api/v1/genres/{id}",
-                "/api/v1/ai/**",
+                "/api/v1/genres/**",
+                ApiPaths.CLIENT_AI_API + "/**",
+                ApiPaths.SEATS_API + "/event/**",
                 "/v3/api-docs/**",
                 "/swagger-ui/**",
                 "/swagger-ui.html"

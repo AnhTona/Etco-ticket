@@ -1,11 +1,10 @@
 package com.esco.etco.entity;
 
 import com.esco.etco.util.SecurityUtil;
-import com.esco.etco.util.constant.GenderEnum;
-import jakarta.persistence.CollectionTable;
-import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
+import com.esco.etco.util.constant.SeatStatusEnum;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -14,44 +13,35 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
-import java.util.Set;
 
 @Entity
-@Table(name = "users")
+@Table(name = "seats")
 @Getter
 @Setter
-public class User {
+public class Seat {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @NotBlank(message = "Name không được để trống")
-    private String name;
+    @NotBlank(message = "Nhãn ghế không được để trống")
+    private String seatLabel;
 
-    @NotBlank(message = "Email không được để trống")
-    private String email;
+    @NotBlank(message = "Khu vực ghế không được để trống")
+    private String zone;
 
-    @NotBlank(message = "Password không được để trống")
-    @Size(min = 8,message = "Password phải lớn hơn hoặc bằng 8")
-    private String password;
+    @NotNull(message = "Giá ghế không được để trống")
+    @DecimalMin(value = "1000.0", message = "Giá ghế phải lớn hơn 1000")
+    private double price;
 
-    private int age;
-
-    private GenderEnum gender;
-
-    private String address;
-
-    @Column(columnDefinition = "MEDIUMTEXT")
-    private String refreshToken;
-
-    private String avatar;
-
+    @Enumerated(EnumType.STRING)
+    private SeatStatusEnum status;
 
     private Instant createdAt;
     private Instant updatedAt;
@@ -59,21 +49,14 @@ public class User {
     private String updatedBy;
 
     @ManyToOne
-    @JoinColumn(name = "role_id")
-    private Role role;
-
-    @ElementCollection
-    @CollectionTable(name = "user_favorite_artists", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "artist_name")
-    private Set<String> favoriteArtists;
-
+    @JoinColumn(name = "event_id")
+    private Event event;
 
     @PrePersist
     public void handleBeforeCreate() {
         this.createdBy = SecurityUtil.getCurrentUserLogin().isPresent() == true
                 ? SecurityUtil.getCurrentUserLogin().get()
                 : "";
-
         this.createdAt = Instant.now();
     }
 
@@ -82,8 +65,6 @@ public class User {
         this.updatedBy = SecurityUtil.getCurrentUserLogin().isPresent() == true
                 ? SecurityUtil.getCurrentUserLogin().get()
                 : "";
-
         this.updatedAt = Instant.now();
     }
-
 }

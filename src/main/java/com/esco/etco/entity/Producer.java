@@ -1,79 +1,49 @@
 package com.esco.etco.entity;
 
 import com.esco.etco.util.SecurityUtil;
-import com.esco.etco.util.constant.GenderEnum;
-import jakarta.persistence.CollectionTable;
-import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
-import java.util.Set;
 
 @Entity
-@Table(name = "users")
+@Table(name = "producers")
 @Getter
 @Setter
-public class User {
+public class Producer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @NotBlank(message = "Name không được để trống")
-    private String name;
+    @NotBlank(message = "Tên nhà sản xuất không được để trống")
+    private String producerName;
 
-    @NotBlank(message = "Email không được để trống")
-    private String email;
+    @NotBlank(message = "Tên ngân hàng không được để trống")
+    private String bankName;
 
-    @NotBlank(message = "Password không được để trống")
-    @Size(min = 8,message = "Password phải lớn hơn hoặc bằng 8")
-    private String password;
+    @NotBlank(message = "Số tài khoản không được để trống")
+    private String bankAccountNumber;
 
-    private int age;
-
-    private GenderEnum gender;
-
-    private String address;
-
-    @Column(columnDefinition = "MEDIUMTEXT")
-    private String refreshToken;
-
-    private String avatar;
-
+    private String contactEmail;
 
     private Instant createdAt;
     private Instant updatedAt;
     private String createdBy;
     private String updatedBy;
 
-    @ManyToOne
-    @JoinColumn(name = "role_id")
-    private Role role;
-
-    @ElementCollection
-    @CollectionTable(name = "user_favorite_artists", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "artist_name")
-    private Set<String> favoriteArtists;
-
-
     @PrePersist
     public void handleBeforeCreate() {
         this.createdBy = SecurityUtil.getCurrentUserLogin().isPresent() == true
                 ? SecurityUtil.getCurrentUserLogin().get()
                 : "";
-
         this.createdAt = Instant.now();
     }
 
@@ -82,8 +52,6 @@ public class User {
         this.updatedBy = SecurityUtil.getCurrentUserLogin().isPresent() == true
                 ? SecurityUtil.getCurrentUserLogin().get()
                 : "";
-
         this.updatedAt = Instant.now();
     }
-
 }
