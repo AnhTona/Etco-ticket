@@ -151,7 +151,8 @@ public class EventServiceimpl implements EventService {
         } else if (!isAdmin && !isOrganizer) {
             Specification<Event> publicSpec = (root, query, cb) -> cb.and(
                     cb.isTrue(root.get("isActive")),
-                    cb.isTrue(root.get("isPublished"))
+                    cb.isTrue(root.get("isPublished")),
+                    cb.greaterThan(root.get("startTime"), Instant.now())
             );
             finalSpec = (spec == null) ? publicSpec : spec.and(publicSpec);
         }
@@ -320,11 +321,20 @@ public class EventServiceimpl implements EventService {
     public List<ResEventDTO> getRecommendedEvents(List<Long> eventIds) {
         if (eventIds == null || eventIds.isEmpty()) return Collections.emptyList();
 
-        // Lấy danh sách Event từ DB
-        List<Event> events = eventRepository.findAllById(eventIds);
+        // Lấy danh sách Event từ DB và lọc sự kiện hợp lệ
+        List<Event> events = eventRepository.findAllById(eventIds).stream()
+                .filter(Event::isActive)
+                .filter(Event::isPublished)
+                .filter(e -> e.getEndTime() != null && e.getEndTime().isAfter(Instant.now()))
+                .collect(Collectors.toList());
 
-        // Lấy hình ảnh để map vào DTO (giống logic trong getAllEvents của bạn)
-        List<EventImage> allImages = eventImageRepository.findByEventIdIn(eventIds);
+        if (events.isEmpty()) return Collections.emptyList();
+
+        // Lấy danh sách ID CHỈ TỪ NHỮNG SỰ KIỆN CÒN HẠN
+        List<Long> validEventIds = events.stream().map(Event::getId).collect(Collectors.toList());
+
+        // Lấy hình ảnh dựa trên danh sách ID đã lọc
+        List<EventImage> allImages = eventImageRepository.findByEventIdIn(validEventIds);
         Map<Long, List<EventImage>> imagesByEventId = allImages.stream()
                 .collect(Collectors.groupingBy(img -> img.getEvent().getId()));
 
@@ -337,7 +347,7 @@ public class EventServiceimpl implements EventService {
     @Override
     public List<ResEventDTO> getFallbackRecommendations() {
         // Lấy top 10 sự kiện mới nhất từ DB
-        List<Event> events = eventRepository.findTop10ByIsActiveTrueAndIsPublishedTrueOrderByCreatedAtDesc();
+        List<Event> events = eventRepository.findTop10ByIsActiveTrueAndIsPublishedTrueAndEndTimeAfterOrderByCreatedAtDesc(Instant.now());
 
         if (events.isEmpty()) return Collections.emptyList();
 

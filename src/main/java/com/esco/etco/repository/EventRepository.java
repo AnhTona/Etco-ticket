@@ -36,5 +36,4 @@ public interface EventRepository extends JpaRepository<Event,Long>, JpaSpecifica
 
     boolean existsByGenreId(long genreId);
 
-    List<Event> findTop10ByIsActiveTrueAndIsPublishedTrueOrderByCreatedAtDesc();
-}
+    List<Event> findTop10ByIsActiveTrueAndIsPublishedTrueAndEndTimeAfterOrderByCreatedAtDesc(Instant currentTime);}
