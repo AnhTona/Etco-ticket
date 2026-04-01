@@ -91,6 +91,38 @@ public class GlobalException {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(res);
     }
 
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<RestResponse<Object>> handleAccessDeniedException(Exception ex) {
+        RestResponse<Object> res = new RestResponse<Object>();
+        res.setStatusCode(HttpStatus.FORBIDDEN.value());
+        res.setError("Forbidden");
+        res.setMessage("Bạn không có quyền truy cập tài nguyên này.");
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(res);
+    }
+
+    @ExceptionHandler(value = {
+            org.springframework.http.converter.HttpMessageNotReadableException.class,
+            org.springframework.web.bind.MissingServletRequestParameterException.class,
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+            IllegalArgumentException.class
+    })
+    public ResponseEntity<RestResponse<Object>> handleBadRequestExceptions(Exception ex) {
+        RestResponse<Object> res = new RestResponse<Object>();
+        res.setStatusCode(HttpStatus.BAD_REQUEST.value());
+        res.setError("Bad Request");
+        res.setMessage(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(res);
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<RestResponse<Object>> handleMethodNotSupportedException(Exception ex) {
+        RestResponse<Object> res = new RestResponse<Object>();
+        res.setStatusCode(HttpStatus.METHOD_NOT_ALLOWED.value());
+        res.setError("Method Not Allowed");
+        res.setMessage(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(res);
+    }
+
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<RestResponse<Object>> handleConstraintViolationException(ConstraintViolationException ex) {
         RestResponse<Object> res = new RestResponse<Object>();
@@ -106,6 +138,15 @@ public class GlobalException {
         res.setMessage(errors.size() > 1 ? errors : errors.get(0));
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(res);
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<RestResponse<Object>> handleDataIntegrityViolationException(Exception ex) {
+        RestResponse<Object> res = new RestResponse<Object>();
+        res.setStatusCode(HttpStatus.CONFLICT.value());
+        res.setError("Data Integrity Violation");
+        res.setMessage("Có lỗi xảy ra do ràng buộc dữ liệu (Duplicate hoặc Foreign Key).");
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(res);
     }
 
     @ExceptionHandler(TransactionSystemException.class)

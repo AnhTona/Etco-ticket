@@ -31,6 +31,9 @@ public interface EventRepository extends JpaRepository<Event,Long>, JpaSpecifica
     @Query("SELECT e FROM Event e WHERE LOWER(e.name) LIKE LOWER(CONCAT('%', :eventName, '%'))")
     List<Event> searchEventsByName(@Param("eventName") String eventName);
 
+    @Query("SELECT DISTINCT e FROM Event e JOIN e.artists a WHERE LOWER(a) LIKE LOWER(CONCAT('%', :artistName, '%')) AND e.isActive = true AND e.isPublished = true")
+    List<Event> findEventsByArtistName(@Param("artistName") String artistName);
+
     @Query("SELECT e FROM Event e WHERE e.genre.id IN :genreIds AND e.isActive = true AND e.isPublished = true")
     List<Event> findByGenreIdIn(@Param("genreIds") List<Long> genreIds);
 

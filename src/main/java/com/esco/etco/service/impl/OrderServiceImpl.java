@@ -162,12 +162,33 @@ public class OrderServiceImpl implements OrderService {
     public ResOrderDTO getOrderById(long id) throws IdInvalidException {
         Order order = this.orderRepository.findById(id).orElse(null);
         if (order == null) throw new IdInvalidException("Order không tồn tại");
+
+        String email = SecurityUtil.getCurrentUserLogin().orElse("");
+        User currentUser = this.userRepository.findByEmail(email);
+        
+        // Kiểm tra quyền sở hữu (trừ khi là admin)
+        boolean isAdmin = currentUser != null && currentUser.getRole() != null && "SUPER_ADMIN".equals(currentUser.getRole().getName());
+        if (!isAdmin && (currentUser == null || order.getUser().getId() != currentUser.getId())) {
+             throw new org.springframework.security.access.AccessDeniedException("Bạn không có quyền xem đơn hàng này");
+        }
+
         return convertToResOrderDTO(order);
     }
 
     @Override
     public ResultPaginationDTO getAllOrders(Specification<Order> spec, Pageable pageable) {
-        Page<Order> pageOrder = this.orderRepository.findAll(spec, pageable);
+        String email = SecurityUtil.getCurrentUserLogin().orElse("");
+        User currentUser = this.userRepository.findByEmail(email);
+        
+        Specification<Order> finalSpec = spec;
+        boolean isAdmin = currentUser != null && currentUser.getRole() != null && "SUPER_ADMIN".equals(currentUser.getRole().getName());
+        if (!isAdmin) {
+             long userId = currentUser != null ? currentUser.getId() : -1L;
+             Specification<Order> userSpec = (root, query, cb) -> cb.equal(root.get("user").get("id"), userId);
+             finalSpec = spec == null ? userSpec : spec.and(userSpec);
+        }
+
+        Page<Order> pageOrder = this.orderRepository.findAll(finalSpec, pageable);
         ResultPaginationDTO rs = new ResultPaginationDTO();
         ResultPaginationDTO.Meta mt = new ResultPaginationDTO.Meta();
         mt.setPage(pageable.getPageNumber() + 1);

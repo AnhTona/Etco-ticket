@@ -212,7 +212,8 @@ public class AIAgentServiceImpl implements AIAgentService {
 
         if (lower.contains("sự kiện") || lower.contains("event")
                 || lower.contains("show") || lower.contains("concert")
-                || lower.contains("lịch") || lower.contains("diễn ra")) {
+                || lower.contains("ca sĩ") || lower.contains("nghệ sĩ")
+                || lower.contains("lịch") || lower.contains("diễn") || lower.contains("có ai")) {
             intents.add("SEARCH_EVENTS");
         }
         if (lower.contains("vé") || lower.contains("ticket")
@@ -280,7 +281,7 @@ public class AIAgentServiceImpl implements AIAgentService {
             // Xây dựng Context String cho Agent LLM
             StringBuilder sb = new StringBuilder("Dưới đây là các sự kiện gợi ý tốt nhất dành cho bạn:\n");
             for (Event e : finalEvents) {
-                sb.append("• ").append(e.getName())
+                sb.append("• [ID: ").append(e.getId()).append("] ").append(e.getName())
                         .append("\n  - Nghệ sĩ: ").append(e.getArtists() != null ? String.join(", ", e.getArtists()) : "Đang cập nhật")
                         .append("\n  - Thể loại: ").append(e.getGenre() != null ? e.getGenre().getName() : "Khác")
                         .append("\n  - Địa điểm: ").append(e.getLocation())
@@ -296,8 +297,9 @@ public class AIAgentServiceImpl implements AIAgentService {
     }
 
     private String extractArtistName(String message) {
-        String prompt = "Nhiệm vụ: Trích xuất tên ca sĩ/nghệ sĩ cụ thể từ câu hỏi (Ví dụ: Sơn Tùng M-TP, Binz, Đen Vâu).\n" +
-                "Nếu không nhắc đến nghệ sĩ nào, hãy in ra: KHONG_CO\n" +
+        String prompt = "Nhiệm vụ: Trích xuất tên ca sĩ/nghệ sĩ cụ thể từ câu hỏi.\n" +
+                "Ví dụ nếu câu hỏi là 'tìm show của Sơn Tùng M-TP', in ra: Sơn Tùng M-TP\n" +
+                "Nếu không có TÊN CỦA MỘT NGHỆ SĨ CỤ THỂ nào (chỉ hỏi show rap, nhạc acoustic, diễn ở đâu), hãy TUYỆT ĐỐI in ra: KHONG_CO\n" +
                 "Chỉ in đúng tên nghệ sĩ, không in gì thêm.\n" +
                 "Câu hỏi: " + message;
 
@@ -305,6 +307,9 @@ public class AIAgentServiceImpl implements AIAgentService {
                 List.of(Map.of("role", "user", "content", prompt)), 0.1);
         
         extractedName = extractedName.trim().replaceAll("[\"']", "");
+        if (extractedName.toLowerCase().contains("không có") || extractedName.contains("KHONG_CO") || extractedName.isBlank()) {
+            return "KHONG_CO";
+        }
         return extractedName;
     }
 
@@ -347,11 +352,18 @@ public class AIAgentServiceImpl implements AIAgentService {
 
             List<Event> events;
             if (eventName.isEmpty()) {
-                // Nếu người dùng hỏi chung chung (VD: "Sắp tới có sự kiện gì"), lấy 5 sự kiện active mới nhất
-                events = this.eventRepository.findAll().stream()
-                        .filter(e -> e.isActive() && e.isPublished())
-                        .limit(5)
-                        .collect(Collectors.toList());
+                // Thử tìm theo Tên nghệ sĩ
+                String artistName = extractArtistName(message);
+                log.info(">>> TOOL EVENT: AI extracted artist name = [{}]", artistName);
+                if (!artistName.equals("KHONG_CO") && !artistName.isBlank()) {
+                    events = this.eventRepository.findEventsByArtistName(artistName);
+                } else {
+                    // Nếu người dùng hỏi chung chung (VD: "Sắp tới có sự kiện gì"), lấy 5 sự kiện active mới nhất
+                    events = this.eventRepository.findAll().stream()
+                            .filter(e -> e.isActive() && e.isPublished())
+                            .limit(5)
+                            .collect(Collectors.toList());
+                }
             } else {
                 // Nếu hỏi tên cụ thể, gọi DB tìm theo tên
                 events = this.eventRepository.searchEventsByName(eventName);
@@ -362,7 +374,7 @@ public class AIAgentServiceImpl implements AIAgentService {
             // Format
             StringBuilder sb = new StringBuilder("Danh sách sự kiện:\n");
             for (Event e : events) {
-                sb.append("• ").append(e.getName())
+                sb.append("• [ID: ").append(e.getId()).append("] ").append(e.getName())
                         .append(" | Nghệ sĩ: ").append(e.getArtists() != null ? String.join(", ", e.getArtists()) : "Đang cập nhật")
                         .append(" | Địa điểm: ").append(e.getLocation())
                         .append(" | Thời gian: ").append(e.getStartTime())
@@ -489,6 +501,7 @@ public class AIAgentServiceImpl implements AIAgentService {
                 4. Nếu DỮ LIỆU THAM KHẢO báo không có thông tin, hãy nói xin lỗi khách: "Dạ, hiện em chưa tìm thấy thông tin vé cho sự kiện này ạ.
                 5. Bạn là một trợ lý ảo hoạt động theo từng phiên (session-based). Bạn CHỈ ĐƯỢC PHÉP sử dụng thông tin từ lịch sử trò chuyện của phiên hiện tại.
                 6. Khi gợi ý sự kiện (Recommendation), hãy nói cho người dùng biết tại sao bạn gợi ý sự kiện đó (Ví dụ: 'Dạ, vì trước đây anh/chị từng đi xem Binz, nên em xin phép gợi ý sự kiện này có nghệ sĩ cùng dòng nhạc...').
+                7. RẤT QUAN TRỌNG: Khi giới thiệu MỘT SỰ KIỆN BẤT KỲ, bắt buộc phải trả về LIÊN KẾT ĐẾN SỰ KIỆN ĐÓ bằng định dạng Markdown là: [Link đến sự kiện](/events/{ID}). Hãy thay {ID} bằng con số nằm ở [ID: ...] trong DỮ LIỆU THAM KHẢO. Ví dụ nếu dữ liệu là "[ID: 5] Đêm Canh Tư", hãy in ra "[Đêm Canh Tư](/events/5)".
                 """;
         return Map.of("role", "system", "content", systemPrompt);
     }
@@ -551,8 +564,8 @@ public class AIAgentServiceImpl implements AIAgentService {
 
     private String extractEventName(String message) {
         String prompt = "Nhiệm vụ: Trích xuất tên sự kiện từ câu hỏi.\n" +
-                "Chỉ in ra đúng tên sự kiện,kèm giá vé và số lượng vé, TUYỆT ĐỐI KHÔNG in thêm bất kỳ chữ nào khác.\n" +
-                "Nếu không có tên sự kiện, in ra: KHONG_CO\n" +
+                "Chỉ in ra đúng tên sự kiện. TUYỆT ĐỐI KHÔNG in thêm bất kỳ chữ nào khác.\n" +
+                "Nếu câu hỏi không nhắc đến một sự kiện cụ thể nào (ví dụ chỉ hỏi tìm show, tìm sự kiện nhạc rap, v.v.), in ra: KHONG_CO\n" +
                 "Câu hỏi: " + message;
 
         String extractedName = this.ollamaService.chat(
@@ -561,12 +574,8 @@ public class AIAgentServiceImpl implements AIAgentService {
         extractedName = extractedName.trim().replaceAll("[\"']", "");
         extractedName = extractedName.replaceFirst("(?i)^tên sự kiện( là|:)?\\s*", "");
 
-        // NẾU AI THẤT BẠI HOẶC TRẢ VỀ RỖNG -> TỰ ĐỘNG XỬ LÝ CHUỖI
-        if (extractedName.contains("KHONG_CO") || extractedName.isBlank()) {
-            // Xóa các từ để hỏi phổ biến để biến câu hỏi thành từ khóa
-            String fallback = message.replaceAll("(?i)(còn bao nhiêu vé|thì sao|thông tin|có|không|về|sự kiện|cho tôi biết|vé|giá|bao nhiêu|ở đâu|khi nào)", "");
-            fallback = fallback.replaceAll("[,.?!]", ""); // Xóa dấu câu
-            return fallback.trim();
+        if (extractedName.contains("KHONG_CO") || extractedName.isBlank() || extractedName.contains("không có")) {
+            return "";
         }
 
         return extractedName;
@@ -604,7 +613,7 @@ public class AIAgentServiceImpl implements AIAgentService {
             // Trả về tối đa 5 kết quả cho AI
             StringBuilder sb = new StringBuilder("Tìm thấy các sự kiện thuộc thể loại " + genreKeyword + ":\n");
             events.stream().limit(5).forEach(e -> {
-                sb.append("- ").append(e.getName())
+                sb.append("- [ID: ").append(e.getId()).append("] ").append(e.getName())
                         .append(" (Địa điểm: ").append(e.getLocation())
                         .append(" | Bắt đầu: ").append(e.getStartTime()).append(")\n");
             });
@@ -622,8 +631,11 @@ public class AIAgentServiceImpl implements AIAgentService {
                 "Bỏ qua các từ như 'tìm kiếm', 'xem', 'có...không'.\n" +
                 "Nếu là 'nhạc sống' hoặc 'ca nhạc', hãy trả về: nhạc sống\n" +
                 "Chỉ trả về từ khóa, không giải thích.\n" +
+                "Nếu không tìm thấy thể loại, trả lời: KHONG_CO\n" +
                 "Câu hỏi: " + message;
 
-        return this.ollamaService.chat(List.of(Map.of("role", "user", "content", prompt)), 0.1).trim().toLowerCase();
+        String extracted = this.ollamaService.chat(List.of(Map.of("role", "user", "content", prompt)), 0.1).trim().toLowerCase();
+        extracted = extracted.replaceAll("[\"']", "");
+        return extracted;
     }
 }
