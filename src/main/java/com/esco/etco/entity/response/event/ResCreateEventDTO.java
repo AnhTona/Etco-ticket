@@ -28,7 +28,7 @@ public class ResCreateEventDTO {
 
     private GenreDTO genre;
 
-
+    private List<String> artists;
     @Getter
     @Setter
     public static class GenreDTO {

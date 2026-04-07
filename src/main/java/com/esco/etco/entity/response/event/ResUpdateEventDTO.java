@@ -14,6 +14,7 @@ public class ResUpdateEventDTO {
     private String description;
     private String location;
     private List<String> urlImage;
+    private List<String> artists;
 
     private boolean isActive;
     private boolean isPublished;

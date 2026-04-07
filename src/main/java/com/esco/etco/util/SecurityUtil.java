@@ -47,6 +47,10 @@ public class SecurityUtil {
     @Value("${etco.jwt.refresh-token-validity-in-seconds}")
     private long refreshTokenExpiration;
 
+    /**
+     * Tạo Access Token chứa thông tin người dùng, vai trò (với tiền tố ROLE_)
+     * và danh sách quyền chi tiết.
+     */
     public String createAccessToken(String email, ResLoginDTO dto) {
         ResLoginDTO.UserInsideToken userToken = new ResLoginDTO.UserInsideToken();
         userToken.setId(dto.getUser().getId());
@@ -56,13 +60,18 @@ public class SecurityUtil {
         Instant now = Instant.now();
         Instant validity = now.plus(this.accessTokenExpiration, ChronoUnit.SECONDS);
 
-        // hardcode permission (for testing)
         List<String> listAuthority = new ArrayList<>();
+
+        // 1. Thêm vai trò vào danh sách quyền (Quan trọng để phân quyền Admin/Organizer)
+        if (dto.getUser().getRole() != null) {
+            listAuthority.add("ROLE_" + dto.getUser().getRole().getName());
+        }
+
+        // 2. Thêm các permission chi tiết (Ví dụ: EVENT_GET, USER_POST)
         if (dto.getUser().getRole() != null && dto.getUser().getRole().getPermissions() != null) {
-            listAuthority = dto.getUser().getRole().getPermissions()
-                    .stream()
-                    .map(p -> p.getModule() + "_" + p.getMethod()) // hoặc format phù hợp
-                    .collect(Collectors.toList());
+            dto.getUser().getRole().getPermissions().forEach(p -> {
+                listAuthority.add(p.getModule() + "_" + p.getMethod());
+            });
         }
 
         // @formatter:off
@@ -76,7 +85,6 @@ public class SecurityUtil {
 
         JwsHeader jwsHeader = JwsHeader.with(JWT_ALGORITHM).build();
         return this.jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claims)).getTokenValue();
-
     }
 
     public String createRefreshToken(String email, ResLoginDTO dto) {
@@ -98,7 +106,6 @@ public class SecurityUtil {
 
         JwsHeader jwsHeader = JwsHeader.with(JWT_ALGORITHM).build();
         return this.jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claims)).getTokenValue();
-
     }
 
     private SecretKey getSecretKey() {
@@ -118,11 +125,7 @@ public class SecurityUtil {
         }
     }
 
-    /**
-     * Get the login of the current user.
-     *
-     * @return the login of the current user.
-     */
+
     public static Optional<String> getCurrentUserLogin() {
         SecurityContext securityContext = SecurityContextHolder.getContext();
         return Optional.ofNullable(extractPrincipal(securityContext.getAuthentication()));
@@ -141,17 +144,11 @@ public class SecurityUtil {
         return null;
     }
 
-    /**
-     * Get the JWT of the current user.
-     *
-     * @return the JWT of the current user.
-     */
+
     public static Optional<String> getCurrentUserJWT() {
         SecurityContext securityContext = SecurityContextHolder.getContext();
         return Optional.ofNullable(securityContext.getAuthentication())
                 .filter(authentication -> authentication.getCredentials() instanceof String)
                 .map(authentication -> (String) authentication.getCredentials());
     }
-
-
 }

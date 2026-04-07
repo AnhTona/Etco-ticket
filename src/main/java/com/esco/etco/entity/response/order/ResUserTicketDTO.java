@@ -1,7 +1,6 @@
 package com.esco.etco.entity.response.order;
 import lombok.Getter;
 import lombok.Setter;
-
 import java.time.Instant;
 
 @Getter
@@ -12,7 +11,10 @@ public class ResUserTicketDTO {
     private String status;
     private Instant issuedAt;
     private Instant usedAt;
-
+    // Bổ sung thông tin ghế để khách biết mình ngồi đâu
+    private String seatLabel;
+    private String zone;
+    private long orderId;
     private EventDTO event;
     private TicketDTO ticket;
 

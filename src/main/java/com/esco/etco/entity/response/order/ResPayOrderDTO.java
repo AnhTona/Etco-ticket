@@ -2,7 +2,6 @@ package com.esco.etco.entity.response.order;
 
 import lombok.Getter;
 import lombok.Setter;
-
 import java.time.Instant;
 import java.util.List;
 
@@ -14,7 +13,6 @@ public class ResPayOrderDTO {
     private String orderStatus;
     private Instant paidAt;
     private double totalAmount;
-
     private List<UserTicketDTO> userTickets;
 
     @Getter
@@ -26,5 +24,7 @@ public class ResPayOrderDTO {
         private String ticketType;
         private String status;
         private Instant issuedAt;
+        // Bổ sung mã ghế để hiện trên màn hình kết quả
+        private String seatLabel;
     }
 }

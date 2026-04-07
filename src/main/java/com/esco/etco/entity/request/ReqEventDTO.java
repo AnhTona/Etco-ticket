@@ -1,14 +1,12 @@
 package com.esco.etco.entity.request;
 
-import jakarta.persistence.Column;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.Instant;
+import java.util.List;
 
-// class này nhận date và time dạng string để dễ thao tác
 @Getter
 @Setter
 public class ReqEventDTO {
@@ -32,10 +30,10 @@ public class ReqEventDTO {
     private String location;
 
     @NotBlank(message = "Vui lòng nhập ngày bắt đầu")
-    private String startDate; // Ví dụ: 2026-02-10
+    private String startDate;
 
     @NotBlank(message = "Vui lòng nhập giờ bắt đầu")
-    private String startTime; // Ví dụ: 18:30
+    private String startTime;
 
     @NotBlank(message = "Vui lòng nhập ngày kết thúc")
     private String endDate;
@@ -45,4 +43,18 @@ public class ReqEventDTO {
 
     @NotNull(message = "Vui lòng chọn thể loại sự kiện")
     private Long genreId;
+
+    private Long producerId;
+
+    private List<String> artists;
+    private ProducerDTO producer;
+
+    @Getter
+    @Setter
+    public static class ProducerDTO {
+        private String producerName;
+        private String contactEmail;
+        private String bankName;
+        private String bankAccountNumber;
+    }
 }

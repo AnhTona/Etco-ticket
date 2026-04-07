@@ -1,6 +1,5 @@
 package com.esco.etco.entity.response.event;
 
-
 import lombok.Getter;
 import lombok.Setter;
 
@@ -26,16 +25,22 @@ public class ResEventDTO {
     private String createdBy;
     private Instant createdAt;
 
-    // Hợp nhất: Thêm các trường về giấy phép (Permit)
+    // Các trường về giấy phép (Permit)
     private String permitNumber;
     private Instant permitIssuedAt;
     private String permitIssuedBy;
 
-    // Hợp nhất: Thêm thông tin Genre
+    // Thông tin Thể loại (Genre)
     private GenreDTO genre;
 
-    // Hợp nhất: Danh sách ảnh của event (đầy đủ các trường)
+    // THÊM: Thông tin Nhà tổ chức (Producer) từ Step 4
+    private ProducerDTO producer;
+
+    // Danh sách ảnh của event
     private List<ImageDTO> images;
+
+    // Danh sách nghệ sĩ
+    private List<String> artists;
 
     @Getter
     @Setter
@@ -50,5 +55,14 @@ public class ResEventDTO {
     public static class GenreDTO {
         private long id;
         private String name;
+    }
+
+    @Getter
+    @Setter
+    public static class ProducerDTO {
+        private String producerName;
+        private String contactEmail;
+        private String bankName;
+        private String bankAccountNumber;
     }
 }

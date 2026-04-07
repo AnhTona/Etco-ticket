@@ -30,4 +30,7 @@ public class OrderItem {
     @ManyToOne
     @JoinColumn(name = "ticket_id")
     private Ticket ticket;
+    @ManyToOne
+    @JoinColumn(name = "seat_id")
+    private Seat seat;
 }

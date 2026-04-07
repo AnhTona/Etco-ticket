@@ -2,22 +2,7 @@ package com.esco.etco.entity;
 
 import com.esco.etco.util.SecurityUtil;
 import com.esco.etco.util.constant.EventStatusEnum;
-import jakarta.persistence.CollectionTable;
-import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -68,23 +53,26 @@ public class Event {
     private String createdBy;
     private String updatedBy;
 
-    @OneToMany(mappedBy = "event", fetch = FetchType.LAZY )
+    // CẬP NHẬT: Thêm CascadeType.ALL và orphanRemoval để tự động xóa Vé khi xóa Event
+    @OneToMany(mappedBy = "event", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Ticket> tickets;
 
-    @OneToMany(mappedBy = "event", fetch = FetchType.LAZY )
+    // CẬP NHẬT: Thêm CascadeType.ALL và orphanRemoval để tự động xóa Ảnh khi xóa Event
+    @OneToMany(mappedBy = "event", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<EventImage> images;
 
     @ManyToOne
     @JoinColumn(name = "genre_id")
     private Genre genre;
 
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "producer_id")
     private Producer producer;
 
     @Enumerated(EnumType.STRING)
     private EventStatusEnum status;
 
+    // Lưu ý: @ElementCollection mặc định sẽ được xóa khi thực thể cha bị xóa
     @ElementCollection
     @CollectionTable(name = "event_artists", joinColumns = @JoinColumn(name = "event_id"))
     @Column(name = "artist_name")
@@ -94,7 +82,17 @@ public class Event {
     public void handleBeforeCreate() {
         this.createdBy = SecurityUtil.getCurrentUserLogin().orElse("system");
         this.createdAt = Instant.now();
+        updateStatus();
+    }
 
+    @PreUpdate
+    public void handleBeforeUpdate() {
+        this.updatedBy = SecurityUtil.getCurrentUserLogin().orElse("system");
+        this.updatedAt = Instant.now();
+        updateStatus();
+    }
+
+    private void updateStatus() {
         Instant now = Instant.now();
         if (this.startTime != null && this.endTime != null) {
             if (now.isBefore(this.startTime)) {
@@ -106,23 +104,6 @@ public class Event {
             }
         } else if (this.status == null) {
             this.status = EventStatusEnum.UPCOMING;
-        }
-    }
-
-    @PreUpdate
-    public void handleBeforeUpdate() {
-        this.updatedBy = SecurityUtil.getCurrentUserLogin().orElse("system");
-        this.updatedAt = Instant.now();
-
-        Instant now = Instant.now();
-        if (this.startTime != null && this.endTime != null) {
-            if (now.isBefore(this.startTime)) {
-                this.status = EventStatusEnum.UPCOMING;
-            } else if (now.isAfter(this.endTime)) {
-                this.status = EventStatusEnum.COMPLETED;
-            } else {
-                this.status = EventStatusEnum.ONGOING;
-            }
         }
     }
 }

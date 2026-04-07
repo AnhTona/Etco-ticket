@@ -87,6 +87,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             // Orders
             arr.add(new Permission("Create an order", ApiPaths.CLIENT_ORDERS_API, "POST", "ORDERS"));
             arr.add(new Permission("Pay an order", ApiPaths.CLIENT_ORDERS_API + "/pay", "POST", "ORDERS"));
+            arr.add(new Permission("Cancel an order", ApiPaths.CLIENT_ORDERS_API + "/{id}/cancel", "POST", "ORDERS"));
             arr.add(new Permission("Get an order by id", ApiPaths.CLIENT_ORDERS_API + "/{id}", "GET", "ORDERS"));
             arr.add(new Permission("Get orders with pagination", ApiPaths.CLIENT_ORDERS_API, "GET", "ORDERS"));
             arr.add(new Permission("Get my tickets", ApiPaths.CLIENT_ORDERS_API + "/my-tickets", "GET", "ORDERS"));
@@ -124,6 +125,12 @@ public class DatabaseInitializer implements CommandLineRunner {
             arr.add(new Permission("Get User Ticket by ID", ApiPaths.USER_TICKETS_API + "/{id}", "GET", "USER_TICKET"));
             arr.add(new Permission("Get Tickets by User", ApiPaths.USER_TICKETS_API + "/user/{userId}", "GET", "USER_TICKET"));
 
+            // Event Staff Management
+            arr.add(new Permission("Add Staff To Event", ApiPaths.EVENT_STAFFS_API, "POST", "EVENT_STAFF"));
+            arr.add(new Permission("Remove Staff From Event", ApiPaths.EVENT_STAFFS_API + "/{id}", "DELETE", "EVENT_STAFF"));
+            arr.add(new Permission("Get Staffs By Event", ApiPaths.EVENT_STAFFS_API + "/event/{eventId}", "GET", "EVENT_STAFF"));
+            arr.add(new Permission("Get Events By Staff", ApiPaths.EVENT_STAFFS_API + "/user/{userId}", "GET", "EVENT_STAFF"));
+
             this.permissionRepository.saveAll(arr);
         }
 
@@ -133,6 +140,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             createAdminRole(allPermissions);
             createCustomerRole(allPermissions);
             createOrganizerRole(allPermissions);
+            createStaffRole(allPermissions);
         }
 
         if (countUsers == 0) {
@@ -186,9 +194,10 @@ public class DatabaseInitializer implements CommandLineRunner {
                                 // Quyền xem sơ đồ ghế (public)
                                 (p.getApiPath().equals(ApiPaths.SEATS_API + "/event/{eventId}") && p.getMethod().equals("GET")) ||
 
-                                // Quyền đặt hàng, thanh toán, xem vé đã mua
+                                // Quyền đặt hàng, thanh toán, hủy đơn, xem vé đã mua
                                 (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API) && p.getMethod().equals("POST")) ||
                                 (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API + "/pay") && p.getMethod().equals("POST")) ||
+                                (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API + "/{id}/cancel") && p.getMethod().equals("POST")) ||
                                 (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API + "/{id}") && p.getMethod().equals("GET")) ||
                                 (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API) && p.getMethod().equals("GET")) ||
                                 (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API + "/my-tickets") && p.getMethod().equals("GET"))
@@ -209,7 +218,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                         p.getModule().equals("EVENTS") ||
                                 p.getModule().equals("FILES") ||
                                 p.getModule().equals("TICKETS") ||
-                                p.getModule().equals("SEAT") || // Thêm quyền quản lý ghế
+                                p.getModule().equals("SEAT") ||
+                                p.getModule().equals("EVENT_STAFF") || // Thêm quyền quản lý nhân viên sự kiện
                                 (p.getApiPath().equals(ApiPaths.USERS_API + "/{id}") && p.getMethod().equals("GET")) ||
                                 (p.getApiPath().equals(ApiPaths.USERS_API) && p.getMethod().equals("PUT"))
                 )
@@ -217,9 +227,28 @@ public class DatabaseInitializer implements CommandLineRunner {
 
         Role organizerRole = new Role();
         organizerRole.setName("ORGANIZER");
-        organizerRole.setDescription("Organizer quản lý sự kiện, vé, ghế và thông tin cá nhân");
+        organizerRole.setDescription("Organizer quản lý sự kiện, vé, ghế, nhân viên và thông tin cá nhân");
         organizerRole.setActive(true);
         organizerRole.setPermissions(organizerPermissions);
         this.roleRepository.save(organizerRole);
+    }
+
+    private void createStaffRole(List<Permission> allPermissions) {
+        List<Permission> staffPermissions = allPermissions.stream()
+                .filter(p ->
+                        // Quyền xem và cập nhật thông tin user
+                        (p.getApiPath().equals(ApiPaths.USERS_API + "/{id}") && p.getMethod().equals("GET")) ||
+                                (p.getApiPath().equals(ApiPaths.USERS_API) && p.getMethod().equals("PUT")) ||
+                                // Quyền verify QR code
+                                (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API + "/verify-qr") && p.getMethod().equals("POST"))
+                )
+                .collect(Collectors.toList());
+
+        Role staffRole = new Role();
+        staffRole.setName("STAFF");
+        staffRole.setDescription("Staff có quyền quét QR vé sự kiện");
+        staffRole.setActive(true);
+        staffRole.setPermissions(staffPermissions);
+        this.roleRepository.save(staffRole);
     }
 }

@@ -1,4 +1,4 @@
-package com.esco.etco.controller.admin;
+package com.esco.etco.controller.client;
 
 import com.esco.etco.entity.Order;
 import com.esco.etco.entity.request.ReqOrderDTO;
@@ -35,7 +35,12 @@ public class OrderController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(this.orderService.createOrder(dto));
     }
-
+    @PostMapping("/orders/{id}/cancel")
+    @ApiMessage("Hủy đơn hàng và giải phóng ghế")
+    public ResponseEntity<Void> cancelOrder(@PathVariable long id) throws IdInvalidException {
+        this.orderService.cancelOrder(id);
+        return ResponseEntity.ok().build();
+    }
     @PostMapping("/orders/pay")
     @ApiMessage("Thanh toán đơn hàng")
     public ResponseEntity<ResPayOrderDTO> payOrder(

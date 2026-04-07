@@ -2,6 +2,7 @@ package com.esco.etco.service.impl;
 
 import com.esco.etco.entity.Event;
 import com.esco.etco.entity.EventImage;
+import com.esco.etco.entity.Producer;
 import com.esco.etco.entity.request.ReqEventDTO;
 import com.esco.etco.entity.response.ResultPaginationDTO;
 import com.esco.etco.entity.response.event.ResCreateEventDTO;
@@ -9,6 +10,7 @@ import com.esco.etco.entity.response.event.ResEventDTO;
 import com.esco.etco.entity.response.event.ResUpdateEventDTO;
 import com.esco.etco.repository.EventImageRepository;
 import com.esco.etco.repository.EventRepository;
+import com.esco.etco.repository.ProducerRepository;
 import com.esco.etco.service.EventService;
 import com.esco.etco.service.FileService;
 import com.esco.etco.util.SecurityUtil;
@@ -20,6 +22,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional; // Thêm import này
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -42,12 +45,16 @@ public class EventServiceimpl implements EventService {
     private final FileService fileService;
     private final EventRepository eventRepository;
     private final EventImageRepository eventImageRepository;
+    private final ProducerRepository producerRepository;
 
     public EventServiceimpl(EventRepository eventRepository,
-                            EventImageRepository eventImageRepository, FileService fileService) {
+                            EventImageRepository eventImageRepository,
+                            FileService fileService,
+                            ProducerRepository producerRepository) {
         this.eventRepository = eventRepository;
         this.eventImageRepository = eventImageRepository;
         this.fileService = fileService;
+        this.producerRepository = producerRepository;
     }
 
     @Override
@@ -84,26 +91,38 @@ public class EventServiceimpl implements EventService {
     }
 
     @Override
+    @Transactional // QUAN TRỌNG: Đảm bảo xóa sạch các bảng liên quan trong 1 transaction
     public void deleteEventById(long id) {
+        // 1. Tìm sự kiện trong DB
+        Event event = this.eventRepository.findById(id).orElse(null);
+        if (event == null) {
+            log.error("Không tìm thấy sự kiện để xóa với ID: " + id);
+            return;
+        }
+
+        // 2. Xóa các tệp ảnh vật lý trong thư mục storage trước
         List<EventImage> images = this.eventImageRepository.findByEventId(id);
         String folder = "events/" + id;
 
-        for(EventImage image : images){
-            try{
+        for (EventImage image : images) {
+            try {
                 fileService.deleteFile(image.getUrl(), folder);
-            }catch (Exception e){
-                log.error("Không thể xóa file: "+ image.getUrl());
+            } catch (Exception e) {
+                log.error("Không thể xóa file vật lý: " + image.getUrl());
             }
         }
 
-        try{
+        try {
             fileService.deleteDirectory(folder);
-        }catch (Exception e){
-            log.error("Không thể xóa folder: " + folder);
+        } catch (Exception e) {
+            log.error("Không thể xóa folder vật lý: " + folder);
         }
 
-        this.eventImageRepository.deleteAllByEventId(id);
-        this.eventRepository.deleteById(id);
+        // 3. Xóa Entity Event
+        // Nhờ cấu hình cascade = CascadeType.ALL trong Event.java,
+        // Hibernate sẽ tự động xóa các bản ghi con trong bảng tickets, event_images, event_artists
+        this.eventRepository.delete(event);
+        log.info("Đã xóa thành công sự kiện ID: " + id + " và các dữ liệu liên quan.");
     }
 
     @Override
@@ -140,7 +159,7 @@ public class EventServiceimpl implements EventService {
         String currentUser = SecurityUtil.getCurrentUserLogin().orElse("");
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        boolean isAdmin = auth != null && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isAdmin = auth != null && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
         boolean isOrganizer = auth != null && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ORGANIZER"));
 
         Specification<Event> finalSpec = spec;
@@ -200,13 +219,11 @@ public class EventServiceimpl implements EventService {
         dto.setCreatedBy(event.getCreatedBy());
         dto.setCreatedAt(event.getCreatedAt());
 
-        // Bổ sung Giấy phép
         dto.setPermitNumber(event.getPermitNumber());
         dto.setPermitIssuedAt(event.getPermitIssuedAt());
         dto.setPermitIssuedBy(event.getPermitIssuedBy());
         dto.setPublished(computePublished(event));
 
-        // Bổ sung Thể loại
         if (event.getGenre() != null) {
             ResEventDTO.GenreDTO genreDTO = new ResEventDTO.GenreDTO();
             genreDTO.setId(event.getGenre().getId());
@@ -214,7 +231,20 @@ public class EventServiceimpl implements EventService {
             dto.setGenre(genreDTO);
         }
 
-        // Tối ưu format ngày
+        // Bổ sung Producer cho Response để Admin/Organizer xem lại được
+        if (event.getProducer() != null) {
+            ResEventDTO.ProducerDTO pDTO = new ResEventDTO.ProducerDTO();
+            pDTO.setProducerName(event.getProducer().getProducerName());
+            pDTO.setContactEmail(event.getProducer().getContactEmail());
+            pDTO.setBankName(event.getProducer().getBankName());
+            pDTO.setBankAccountNumber(event.getProducer().getBankAccountNumber());
+            dto.setProducer(pDTO);
+        }
+
+        if (event.getArtists() != null) {
+            dto.setArtists(new java.util.ArrayList<>(event.getArtists()));
+        }
+
         formatDateTime(event, dto::setStartDate, dto::setStartTime, dto::setEndDate, dto::setEndTime);
 
         dto.setImages(images.stream().map(img -> {
@@ -240,7 +270,6 @@ public class EventServiceimpl implements EventService {
         res.setCreatedAt(event.getCreatedAt());
         res.setPublished(computePublished(event));
 
-        // Bổ sung Thể loại
         if (event.getGenre() != null) {
             ResCreateEventDTO.GenreDTO g = new ResCreateEventDTO.GenreDTO();
             g.setId(event.getGenre().getId());
@@ -285,11 +314,37 @@ public class EventServiceimpl implements EventService {
         event.setStartTime(combineDateAndTime(dto.getStartDate(), dto.getStartTime()));
         event.setEndTime(combineDateAndTime(dto.getEndDate(), dto.getEndTime()));
 
-        // Bổ sung map Thể loại
         if (dto.getGenreId() != null) {
             Genre genre = new Genre();
             genre.setId(dto.getGenreId());
             event.setGenre(genre);
+        }
+
+        // Logic lưu Producer từ DTO
+        if (dto.getProducer() != null) {
+            Producer producer = event.getProducer();
+            if (producer == null) {
+                producer = new Producer();
+            }
+            producer.setProducerName(dto.getProducer().getProducerName());
+            producer.setContactEmail(dto.getProducer().getContactEmail());
+            producer.setBankName(dto.getProducer().getBankName());
+            producer.setBankAccountNumber(dto.getProducer().getBankAccountNumber());
+
+            if (producer.getCreatedAt() == null) {
+                producer.setCreatedAt(Instant.now());
+                producer.setCreatedBy(SecurityUtil.getCurrentUserLogin().orElse("system"));
+            } else {
+                producer.setUpdatedAt(Instant.now());
+                producer.setUpdatedBy(SecurityUtil.getCurrentUserLogin().orElse("system"));
+            }
+            event.setProducer(producer);
+        }
+
+        if (dto.getArtists() != null) {
+            event.setArtists(new java.util.HashSet<>(dto.getArtists()));
+        } else {
+            event.setArtists(new java.util.HashSet<>());
         }
     }
 
@@ -321,7 +376,6 @@ public class EventServiceimpl implements EventService {
     public List<ResEventDTO> getRecommendedEvents(List<Long> eventIds) {
         if (eventIds == null || eventIds.isEmpty()) return Collections.emptyList();
 
-        // Lấy danh sách Event từ DB và lọc sự kiện hợp lệ
         List<Event> events = eventRepository.findAllById(eventIds).stream()
                 .filter(Event::isActive)
                 .filter(Event::isPublished)
@@ -330,15 +384,12 @@ public class EventServiceimpl implements EventService {
 
         if (events.isEmpty()) return Collections.emptyList();
 
-        // Lấy danh sách ID CHỈ TỪ NHỮNG SỰ KIỆN CÒN HẠN
         List<Long> validEventIds = events.stream().map(Event::getId).collect(Collectors.toList());
 
-        // Lấy hình ảnh dựa trên danh sách ID đã lọc
         List<EventImage> allImages = eventImageRepository.findByEventIdIn(validEventIds);
         Map<Long, List<EventImage>> imagesByEventId = allImages.stream()
                 .collect(Collectors.groupingBy(img -> img.getEvent().getId()));
 
-        // Convert sang ResEventDTO
         return events.stream()
                 .map(event -> convertToResEventDTO(event, imagesByEventId.getOrDefault(event.getId(), Collections.emptyList())))
                 .collect(Collectors.toList());
@@ -346,15 +397,12 @@ public class EventServiceimpl implements EventService {
 
     @Override
     public List<ResEventDTO> getFallbackRecommendations() {
-        // Lấy top 10 sự kiện mới nhất từ DB
         List<Event> events = eventRepository.findTop10ByIsActiveTrueAndIsPublishedTrueAndEndTimeAfterOrderByCreatedAtDesc(Instant.now());
 
         if (events.isEmpty()) return Collections.emptyList();
 
-        // Lấy danh sách ID để query ảnh
         List<Long> eventIds = events.stream().map(Event::getId).collect(Collectors.toList());
 
-        // Lấy ảnh và map giống hệt hàm getRecommendedEvents
         List<EventImage> allImages = eventImageRepository.findByEventIdIn(eventIds);
         Map<Long, List<EventImage>> imagesByEventId = allImages.stream()
                 .collect(Collectors.groupingBy(img -> img.getEvent().getId()));

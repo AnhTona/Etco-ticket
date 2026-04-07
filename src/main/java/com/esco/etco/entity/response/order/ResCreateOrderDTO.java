@@ -2,7 +2,6 @@ package com.esco.etco.entity.response.order;
 
 import lombok.Getter;
 import lombok.Setter;
-
 import java.time.Instant;
 import java.util.List;
 
@@ -15,7 +14,6 @@ public class ResCreateOrderDTO {
     private String orderStatus;
     private Instant createdAt;
     private String createdBy;
-
     private List<OrderItemDTO> items;
 
     @Getter
@@ -28,5 +26,8 @@ public class ResCreateOrderDTO {
         private int quantity;
         private double pricePerUnit;
         private double subtotal;
+        // Bổ sung thông tin ghế
+        private String seatLabel;
+        private String zone;
     }
 }

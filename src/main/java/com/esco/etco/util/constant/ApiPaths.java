@@ -2,13 +2,14 @@ package com.esco.etco.util.constant;
 
 public final class ApiPaths {
 
-    private static final String API_V1_ADMIN = "/api/v1";
+    public static final String API_V1_ADMIN = "/api/v1";
 
     // Module Paths
     public static final String PRODUCERS_API = API_V1_ADMIN + "/producers";
     public static final String SEATS_API = API_V1_ADMIN + "/seats";
     public static final String TRANSACTIONS_API = API_V1_ADMIN + "/transactions";
     public static final String USER_TICKETS_API = API_V1_ADMIN + "/user-tickets";
+    public static final String EVENT_STAFFS_API = API_V1_ADMIN + "/event-staffs";
 
     // Other Admin Paths
     public static final String PERMISSIONS_API = API_V1_ADMIN + "/permissions";

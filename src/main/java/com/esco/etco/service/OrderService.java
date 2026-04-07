@@ -27,4 +27,6 @@ public interface OrderService {
     List<ResUserTicketDTO> getMyTickets();
 
     ResUserTicketDTO verifyQrCode(String qrCode) throws IdInvalidException;
+
+    void cancelOrder(long id) throws IdInvalidException;
 }
