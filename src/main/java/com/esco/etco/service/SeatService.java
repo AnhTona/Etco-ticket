@@ -2,6 +2,7 @@ package com.esco.etco.service;
 
 import com.esco.etco.entity.request.ReqSeatDTO;
 import com.esco.etco.entity.response.ResSeatDTO;
+import com.esco.etco.entity.response.ResSeatRecommendationDTO;
 import com.esco.etco.util.error.IdInvalidException;
 
 import java.util.List;
@@ -12,4 +13,5 @@ public interface SeatService {
     void delete(long id) throws IdInvalidException;
     ResSeatDTO getById(long id) throws IdInvalidException;
     List<ResSeatDTO> getByEventId(long eventId);
+    ResSeatRecommendationDTO getRecommendedSeats(long eventId, List<String> selectedSeatLabels);
 }

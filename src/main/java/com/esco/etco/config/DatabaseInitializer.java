@@ -92,6 +92,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             arr.add(new Permission("Get orders with pagination", ApiPaths.CLIENT_ORDERS_API, "GET", "ORDERS"));
             arr.add(new Permission("Get my tickets", ApiPaths.CLIENT_ORDERS_API + "/my-tickets", "GET", "ORDERS"));
             arr.add(new Permission("Verify QR Code", ApiPaths.CLIENT_ORDERS_API + "/verify-qr", "POST", "ORDERS"));
+            arr.add(new Permission("Recommend Adjacent Seats", "/api/v1/seats/recommend-adjacent", "POST", "ORDERS"));
 
             // Files
             arr.add(new Permission("Upload a file", ApiPaths.EVENTS_API + "/{eventId}/images", "POST", "FILES"));
@@ -200,7 +201,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                                 (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API + "/{id}/cancel") && p.getMethod().equals("POST")) ||
                                 (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API + "/{id}") && p.getMethod().equals("GET")) ||
                                 (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API) && p.getMethod().equals("GET")) ||
-                                (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API + "/my-tickets") && p.getMethod().equals("GET"))
+                                (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API + "/my-tickets") && p.getMethod().equals("GET")) ||
+                                (p.getApiPath().equals("/api/v1/seats/recommend-adjacent") && p.getMethod().equals("POST"))
                 )
                 .collect(Collectors.toList());
 

@@ -16,8 +16,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.text.Normalizer;
 import java.time.Instant;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -69,14 +71,17 @@ public class AIAgentServiceImpl implements AIAgentService {
         List<ResChatDTO.SourceDTO> sources = new ArrayList<>();
         StringBuilder allContext = new StringBuilder();
 
-        // Luôn chạy RAG Search cho kiến thức tĩnh (Chính sách, FAQ)
-        String ragResult = executeRAGSearch(dto.getMessage(), sources);
-        if (!ragResult.isEmpty()) {
-            toolsUsed.add("RAG_SEARCH");
-            allContext.append("=== KIẾN THỨC HỆ THỐNG ===\n").append(ragResult).append("\n");
-        }
-
         List<String> intents = detectIntent(dto.getMessage());
+
+        // Ưu tiên 1: Chạy RAG Search cho kiến thức tĩnh (Chính sách, FAQ) NẾU intent là RAG_SEARCH
+        // Rút gọn việc lúc nào cũng chạy RAG gây lãng phí nếu người dùng chỉ hỏi mua vé
+        if (intents.contains("RAG_SEARCH") || intents.isEmpty()) {
+            String ragResult = executeRAGSearch(dto.getMessage(), sources);
+            if (!ragResult.isEmpty()) {
+                toolsUsed.add("RAG_SEARCH");
+                allContext.append("=== KIẾN THỨC HỆ THỐNG ===\n").append(ragResult).append("\n");
+            }
+        }
 
         // Xử lý tìm kiếm Sự kiện/Vé/Thể loại
         if (intents.contains("SEARCH_EVENTS") || intents.contains("SEARCH_TICKETS") || intents.contains("SEARCH_BY_GENRE")) {
@@ -213,7 +218,8 @@ public class AIAgentServiceImpl implements AIAgentService {
         if (lower.contains("sự kiện") || lower.contains("event")
                 || lower.contains("show") || lower.contains("concert")
                 || lower.contains("ca sĩ") || lower.contains("nghệ sĩ")
-                || lower.contains("lịch") || lower.contains("diễn") || lower.contains("có ai")) {
+                || lower.contains("lịch") || lower.contains("diễn") || lower.contains("có ai")
+                || lower.contains("tìm")) {
             intents.add("SEARCH_EVENTS");
         }
         if (lower.contains("vé") || lower.contains("ticket")
@@ -226,8 +232,8 @@ public class AIAgentServiceImpl implements AIAgentService {
             intents.add("LOOKUP_ORDER");
         }
 
-        // Nếu không trúng cái nào thì mặc định tìm RAG
-        if (intents.isEmpty()) {
+        // Nếu không trúng cái nào cụ thể liên quan DB thì tìm RAG
+        if (intents.isEmpty() || lower.contains("quy định") || lower.contains("chính sách") || lower.contains("hỏi")) {
             intents.add("RAG_SEARCH");
         }
         return intents;
@@ -342,6 +348,19 @@ public class AIAgentServiceImpl implements AIAgentService {
     }
 
     /**
+     * Helper: Loại bỏ dấu tiếng Việt và ký tự đặc biệt để tìm kiếm Flex Search
+     */
+    private String normalizeString(String str) {
+        if (str == null) return "";
+        // Bỏ dấu tiếng Việt
+        String normalized = Normalizer.normalize(str, Normalizer.Form.NFD);
+        Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+        normalized = pattern.matcher(normalized).replaceAll("");
+        // Đổi thành chữ thường và bỏ toàn bộ ký tự không phải chữ/số
+        return normalized.toLowerCase().replaceAll("[^a-z0-9]", "");
+    }
+
+    /**
      * Tool: Tìm sự kiện trong DB
      */
     private String executeEventSearch(String message) {
@@ -350,23 +369,42 @@ public class AIAgentServiceImpl implements AIAgentService {
             String eventName = extractEventName(message);
             log.info(">>> TOOL EVENT: AI extracted event name = [{}]", eventName);
 
-            List<Event> events;
-            if (eventName.isEmpty()) {
-                // Thử tìm theo Tên nghệ sĩ
+            List<Event> events = new ArrayList<>();
+            
+            if (!eventName.isEmpty()) {
+                // 1. Thử tìm kiếm chính xác bằng SQL LIKE
+                events = this.eventRepository.searchEventsByName(eventName);
+                
+                // 2. Nếu SQL LIKE thất bại (thường do dư thiếu dấu ngoặc, ký tự đặc biệt) -> Chuyển sang Flex Search
+                if (events.isEmpty()) {
+                    log.info(">>> TOOL EVENT: SQL LIKE failed, falling back to Flex Search (Java side filtering) for: [{}]", eventName);
+                    String normalizedKeyword = normalizeString(eventName);
+                    
+                    // Lấy tất cả Event (hoặc giới hạn active) rồi lọc bằng Java
+                    events = this.eventRepository.findAll().stream()
+                            .filter(e -> e.isActive() && e.isPublished()) // Thêm điều kiện lọc cơ bản
+                            .filter(e -> {
+                                String normalizedDbName = normalizeString(e.getName());
+                                // Kiểm tra xem tên DB (đã bỏ dấu) có chứa từ khóa (đã bỏ dấu) không
+                                return normalizedDbName.contains(normalizedKeyword) || normalizedKeyword.contains(normalizedDbName);
+                            })
+                            .collect(Collectors.toList());
+                }
+            }
+
+            // 3. Nếu vẫn không có tên sự kiện hoặc Flex Search không ra, thử tìm bằng Tên nghệ sĩ
+            if (events.isEmpty()) {
                 String artistName = extractArtistName(message);
                 log.info(">>> TOOL EVENT: AI extracted artist name = [{}]", artistName);
                 if (!artistName.equals("KHONG_CO") && !artistName.isBlank()) {
                     events = this.eventRepository.findEventsByArtistName(artistName);
-                } else {
+                } else if (eventName.isEmpty()) {
                     // Nếu người dùng hỏi chung chung (VD: "Sắp tới có sự kiện gì"), lấy 5 sự kiện active mới nhất
                     events = this.eventRepository.findAll().stream()
                             .filter(e -> e.isActive() && e.isPublished())
                             .limit(5)
                             .collect(Collectors.toList());
                 }
-            } else {
-                // Nếu hỏi tên cụ thể, gọi DB tìm theo tên
-                events = this.eventRepository.searchEventsByName(eventName);
             }
 
             if (events.isEmpty()) return "Hiện không có sự kiện nào khớp với yêu cầu.";
@@ -402,13 +440,31 @@ public class AIAgentServiceImpl implements AIAgentService {
 
             // Dùng tên đó gọi vào Database
             List<Ticket> tickets = this.ticketRepository.searchTicketsByEventName(eventName);
-
+            
+            // Nếu SQL LIKE không ra vé -> Tìm Event bằng Flex Search trước, rồi lấy list Ticket từ Event đó
             if (tickets.isEmpty()) {
+                log.info(">>> TOOL TICKET: SQL LIKE failed, falling back to Flex Search for Event...");
+                String normalizedKeyword = normalizeString(eventName);
+                List<Event> matchedEvents = this.eventRepository.findAll().stream()
+                            .filter(e -> e.isActive() && e.isPublished())
+                            .filter(e -> normalizeString(e.getName()).contains(normalizedKeyword))
+                            .collect(Collectors.toList());
+                
+                if (!matchedEvents.isEmpty()) {
+                    // Lấy vé của sự kiện khớp đầu tiên
+                    tickets = matchedEvents.get(0).getTickets();
+                }
+            }
+
+            if (tickets == null || tickets.isEmpty()) {
                 return "Hiện chưa có thông tin vé cho sự kiện: " + eventName;
             }
 
+            // Đảm bảo lấy tên sự kiện chính xác từ DB
+            String realEventName = tickets.get(0).getEvent().getName();
+
             // Format lại thông tin đưa cho AI chính
-            StringBuilder sb = new StringBuilder("Thông tin vé của sự kiện " + eventName + ":\n");
+            StringBuilder sb = new StringBuilder("Thông tin vé của sự kiện " + realEventName + ":\n");
             for (Ticket t : tickets) {
                 int remaining = t.getTotalQuantity() - t.getSoldQuantity();
                 sb.append("• Loại vé: ").append(t.getTicketType())
@@ -501,7 +557,7 @@ public class AIAgentServiceImpl implements AIAgentService {
                 4. Nếu DỮ LIỆU THAM KHẢO báo không có thông tin, hãy nói xin lỗi khách: "Dạ, hiện em chưa tìm thấy thông tin vé cho sự kiện này ạ.
                 5. Bạn là một trợ lý ảo hoạt động theo từng phiên (session-based). Bạn CHỈ ĐƯỢC PHÉP sử dụng thông tin từ lịch sử trò chuyện của phiên hiện tại.
                 6. Khi gợi ý sự kiện (Recommendation), hãy nói cho người dùng biết tại sao bạn gợi ý sự kiện đó (Ví dụ: 'Dạ, vì trước đây anh/chị từng đi xem Binz, nên em xin phép gợi ý sự kiện này có nghệ sĩ cùng dòng nhạc...').
-                7. RẤT QUAN TRỌNG: Khi giới thiệu MỘT SỰ KIỆN BẤT KỲ, bắt buộc phải trả về LIÊN KẾT ĐẾN SỰ KIỆN ĐÓ bằng định dạng Markdown là: [Link đến sự kiện](/events/{ID}). Hãy thay {ID} bằng con số nằm ở [ID: ...] trong DỮ LIỆU THAM KHẢO. Ví dụ nếu dữ liệu là "[ID: 5] Đêm Canh Tư", hãy in ra "[Đêm Canh Tư](/events/5)".
+                7. RẤT QUAN TRỌNG: Khi giới thiệu MỘT SỰ KIỆN BẤT KỲ, bắt buộc phải trả về LIÊN KẾT ĐẾN SỰ KIỆN ĐÓ bằng định dạng Markdown là: [Link đến sự kiện](http://localhost:4173/events/{ID}). Hãy thay {ID} bằng con số nằm ở [ID: ...] trong DỮ LIỆU THAM KHẢO. Ví dụ nếu dữ liệu là "[ID: 5] Đêm Canh Tư", hãy in ra "[Đêm Canh Tư](/events/5)".
                 """;
         return Map.of("role", "system", "content", systemPrompt);
     }

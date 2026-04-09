@@ -3,9 +3,11 @@ package com.esco.etco.controller.client;
 import com.esco.etco.entity.Order;
 import com.esco.etco.entity.request.ReqOrderDTO;
 import com.esco.etco.entity.request.ReqPayOrderDTO;
+import com.esco.etco.entity.response.ResSeatRecommendationDTO;
 import com.esco.etco.entity.response.ResultPaginationDTO;
 import com.esco.etco.entity.response.order.*;
 import com.esco.etco.service.OrderService;
+import com.esco.etco.service.SeatService;
 import com.esco.etco.util.annotation.ApiMessage;
 import com.esco.etco.util.error.IdInvalidException;
 import com.turkraft.springfilter.boot.Filter;
@@ -23,9 +25,11 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final SeatService seatService;
 
-    public OrderController(OrderService orderService) {
+    public OrderController(OrderService orderService, SeatService seatService) {
         this.orderService = orderService;
+        this.seatService = seatService;
     }
 
     @PostMapping("/orders")
@@ -74,5 +78,14 @@ public class OrderController {
     public ResponseEntity<ResUserTicketDTO> verifyQrCode(
             @RequestParam String qrCode) throws IdInvalidException {
         return ResponseEntity.ok(this.orderService.verifyQrCode(qrCode));
+    }
+
+    @PostMapping("/seats/recommend-adjacent")
+    @ApiMessage("Kiểm tra và Gợi ý ghế trống kế bên")
+    public ResponseEntity<ResSeatRecommendationDTO> recommendAdjacentSeats(
+            @RequestParam long eventId,
+            @RequestBody List<String> selectedSeatLabels) {
+
+        return ResponseEntity.ok(seatService.getRecommendedSeats(eventId, selectedSeatLabels));
     }
 }
