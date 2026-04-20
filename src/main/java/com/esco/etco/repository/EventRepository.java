@@ -28,7 +28,8 @@ public interface EventRepository extends JpaRepository<Event,Long>, JpaSpecifica
     @Query("SELECT e FROM Event e WHERE e.endTime < :cutoff")
     List<Event> findEventsEndedBefore(@Param("cutoff") Instant cutoff);
 
-    @Query("SELECT e FROM Event e WHERE LOWER(e.name) LIKE LOWER(CONCAT('%', :eventName, '%'))")
+    // Kèm Query xuống bảng giá vé (LEFT JOIN FETCH e.tickets t)
+    @Query("SELECT DISTINCT e FROM Event e LEFT JOIN FETCH e.tickets t WHERE LOWER(e.name) LIKE LOWER(CONCAT('%', :eventName, '%'))")
     List<Event> searchEventsByName(@Param("eventName") String eventName);
 
     @Query("SELECT DISTINCT e FROM Event e JOIN e.artists a WHERE LOWER(a) LIKE LOWER(CONCAT('%', :artistName, '%')) AND e.isActive = true AND e.isPublished = true")
@@ -39,4 +40,5 @@ public interface EventRepository extends JpaRepository<Event,Long>, JpaSpecifica
 
     boolean existsByGenreId(long genreId);
 
-    List<Event> findTop10ByIsActiveTrueAndIsPublishedTrueAndEndTimeAfterOrderByCreatedAtDesc(Instant currentTime);}
+    List<Event> findTop10ByIsActiveTrueAndIsPublishedTrueAndEndTimeAfterOrderByCreatedAtDesc(Instant currentTime);
+}

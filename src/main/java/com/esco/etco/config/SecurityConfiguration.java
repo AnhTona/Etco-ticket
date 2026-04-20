@@ -67,6 +67,7 @@ public class SecurityConfiguration {
                                         "/api/v1/events/**",
                                         "/api/v1/genres/**",
                                         "/api/v1/tickets/**",
+                                        "/api/v1/payment/**",
                                         ApiPaths.SEATS_API + "/event/**"
                                 ).permitAll()
                                 .requestMatchers("/api/v1/admin/**").hasAuthority("ROLE_ADMIN")

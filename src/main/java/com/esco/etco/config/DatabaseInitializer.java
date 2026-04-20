@@ -72,6 +72,8 @@ public class DatabaseInitializer implements CommandLineRunner {
             arr.add(new Permission("Create a Genre", ApiPaths.GENRES_API, "POST", "GENRES"));
             arr.add(new Permission("Update a Genre", ApiPaths.GENRES_API, "PUT", "GENRES"));
             arr.add(new Permission("Delete a Genre", ApiPaths.GENRES_API + "/{id}", "DELETE", "GENRES"));
+            arr.add(new Permission("Get Genres with pagination", ApiPaths.GENRES_API, "GET", "GENRES"));
+            arr.add(new Permission("Get a Genre by id", ApiPaths.GENRES_API + "/{id}", "GET", "GENRES"));
 
             // Events
             arr.add(new Permission("Create a Event", ApiPaths.EVENTS_API, "POST", "EVENTS"));
@@ -79,10 +81,19 @@ public class DatabaseInitializer implements CommandLineRunner {
             arr.add(new Permission("Delete a Event", ApiPaths.EVENTS_API + "/{id}", "DELETE", "EVENTS"));
             arr.add(new Permission("Toggle Active", ApiPaths.EVENTS_API + "/{id}/active", "PATCH", "EVENTS"));
             arr.add(new Permission("Toggle Published", ApiPaths.EVENTS_API + "/{id}/published", "PATCH", "EVENTS"));
+            arr.add(new Permission("Get Events with pagination", ApiPaths.EVENTS_API, "GET", "EVENTS"));
+            arr.add(new Permission("Get a Event by id", ApiPaths.EVENTS_API + "/{id}", "GET", "EVENTS"));
 
             // Tickets
             arr.add(new Permission("Create Tickets", ApiPaths.TICKETS_API, "POST", "TICKETS"));
             arr.add(new Permission("Update Tickets", ApiPaths.TICKETS_API + "/{id}", "PUT", "TICKETS"));
+            arr.add(new Permission("Delete a Ticket", ApiPaths.TICKETS_API + "/{id}", "DELETE", "TICKETS"));
+            arr.add(new Permission("Get Tickets with pagination", ApiPaths.TICKETS_API, "GET", "TICKETS"));
+            arr.add(new Permission("Get a Ticket by id", ApiPaths.TICKETS_API + "/{id}", "GET", "TICKETS"));
+
+            // Payment Management
+            arr.add(new Permission("Create Payment", "/api/v1/payment/create", "POST", "PAYMENT"));
+            arr.add(new Permission("Payment IPN Webhook", "/api/v1/payment/ipn", "POST", "PAYMENT"));
 
             // Orders
             arr.add(new Permission("Create an order", ApiPaths.CLIENT_ORDERS_API, "POST", "ORDERS"));
@@ -202,7 +213,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                                 (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API + "/{id}") && p.getMethod().equals("GET")) ||
                                 (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API) && p.getMethod().equals("GET")) ||
                                 (p.getApiPath().equals(ApiPaths.CLIENT_ORDERS_API + "/my-tickets") && p.getMethod().equals("GET")) ||
-                                (p.getApiPath().equals("/api/v1/seats/recommend-adjacent") && p.getMethod().equals("POST"))
+                                (p.getApiPath().equals("/api/v1/seats/recommend-adjacent") && p.getMethod().equals("POST"))||
+                                (p.getApiPath().equals("/api/v1/payment/create") && p.getMethod().equals("POST"))
                 )
                 .collect(Collectors.toList());
 

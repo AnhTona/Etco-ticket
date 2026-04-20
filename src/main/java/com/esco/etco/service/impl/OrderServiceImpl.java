@@ -232,8 +232,22 @@ public class OrderServiceImpl implements OrderService {
         User currentUser = this.userRepository.findByEmail(email);
 
         Specification<Order> finalSpec = spec;
-        boolean isAdmin = currentUser != null && currentUser.getRole() != null && "SUPER_ADMIN".equals(currentUser.getRole().getName());
-        if (!isAdmin) {
+
+        // Lấy tên Role của User hiện tại
+        String roleName = (currentUser != null && currentUser.getRole() != null)
+                ? currentUser.getRole().getName() : "";
+        boolean isAdmin = "SUPER_ADMIN".equals(roleName);
+        boolean isOrganizer = "ORGANIZER".equals(roleName);
+
+        if (isOrganizer && !isAdmin) {
+            // Nếu là Organizer: Lấy đơn hàng có item thuộc về sự kiện do mình tạo
+            Specification<Order> organizerSpec = (root, query, cb) -> {
+                query.distinct(true); // Quan trọng: Tránh lặp Order khi join
+                return cb.equal(root.join("orderItems").join("ticket").join("event").get("createdBy"), email);
+            };
+            finalSpec = (spec == null) ? organizerSpec : spec.and(organizerSpec);
+        } else if (!isAdmin) {
+            // Nếu là Customer bình thường: Chỉ lấy đơn hàng mình đã mua
             long userId = currentUser != null ? currentUser.getId() : -1L;
             Specification<Order> userSpec = (root, query, cb) -> cb.equal(root.get("user").get("id"), userId);
             finalSpec = spec == null ? userSpec : spec.and(userSpec);

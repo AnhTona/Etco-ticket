@@ -557,7 +557,7 @@ public class AIAgentServiceImpl implements AIAgentService {
                 4. Nếu DỮ LIỆU THAM KHẢO báo không có thông tin, hãy nói xin lỗi khách: "Dạ, hiện em chưa tìm thấy thông tin vé cho sự kiện này ạ.
                 5. Bạn là một trợ lý ảo hoạt động theo từng phiên (session-based). Bạn CHỈ ĐƯỢC PHÉP sử dụng thông tin từ lịch sử trò chuyện của phiên hiện tại.
                 6. Khi gợi ý sự kiện (Recommendation), hãy nói cho người dùng biết tại sao bạn gợi ý sự kiện đó (Ví dụ: 'Dạ, vì trước đây anh/chị từng đi xem Binz, nên em xin phép gợi ý sự kiện này có nghệ sĩ cùng dòng nhạc...').
-                7. RẤT QUAN TRỌNG: Khi giới thiệu MỘT SỰ KIỆN BẤT KỲ, bắt buộc phải trả về LIÊN KẾT ĐẾN SỰ KIỆN ĐÓ bằng định dạng Markdown là: [Link đến sự kiện](http://localhost:4173/events/{ID}). Hãy thay {ID} bằng con số nằm ở [ID: ...] trong DỮ LIỆU THAM KHẢO. Ví dụ nếu dữ liệu là "[ID: 5] Đêm Canh Tư", hãy in ra "[Đêm Canh Tư](/events/5)".
+                7. RẤT QUAN TRỌNG: Khi giới thiệu MỘT SỰ KIỆN BẤT KỲ, bắt buộc phải trả về LIÊN KẾT ĐẾN SỰ KIỆN ĐÓ bằng định dạng Markdown là: [Link đến sự kiện](http://localhost:4173/event/{ID}). Hãy thay {ID} bằng con số nằm ở [ID: ...] trong DỮ LIỆU THAM KHẢO. Ví dụ nếu dữ liệu là "[ID: 5] Đêm Canh Tư", hãy in ra "[Đêm Canh Tư](/events/5)".
                 """;
         return Map.of("role", "system", "content", systemPrompt);
     }
